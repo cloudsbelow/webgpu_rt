@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      .debugTab {
+        position:absolute;
+        top: -21px;
+        height: 20px;
+        left: 0px;
+        
+        display: flex;
+        flex-direction: row;
+        padding-left: 20px;
+        border: 1px solid white;
+      }
+      .debugTab div {
+        background-color: lightgray;
+        width:30px;
+        text-align: center;
+        margin:1px 1px 1px 0px;
+      }
+      #debugWrapper {
+        margin-top:30px;
+      }
+      body{
+        margin-top:0px;
+        height:700px;
+        position:fixed;
+      }
+    </style>
+  </head>
+  <script>
+    let wgsl = {};
+    let jcsl={}
+    let objs = {}
+    let lib = {}
+    
+  </script>
+  <body style="background-color:#010107">
+    <div id="debugWrapper"></div>
+  </body>
+  <script src = 'src/main.js', type="module"></script>
+</html>
