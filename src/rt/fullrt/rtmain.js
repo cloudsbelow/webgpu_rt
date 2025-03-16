@@ -29,16 +29,24 @@ ${sceneatmofns(3)}
 
 
 ${ver.screenVertexQuad}
-
+const maxSceneDist:f32 = 10000000000.;
 @fragment
 fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let pixelcoord:vec2u = vec2u(floor(spos.xy));
   randState = pixelcoord.x+pixelcoord.y*width+textureLoad(randstatetx,pixelcoord).x;
   let ndc=vec4f((spos.xy-vec2(0.5,0.5)+vec2(unitRand(),unitRand()))*2/vec2f(width, -height)-vec2f(1,-1),1,1);
   let dirvec=normalize((cam.aInv*ndc).xyz);
-  let dist:f32=raytrace(cam.loc, dirvec, 0.01,10000);
+  let dist:f32=raytrace(cam.loc, dirvec, 0.01,maxSceneDist);
   
-  let out = vec4f(1/dist,0,0,1);
+  var out=vec4f(0,0,0,0); //= vec4f(1/dist,0,0,1);
+  if(dist<maxSceneDist){
+    out = vec4(1,1,0,1);
+  }
+  /*if(dist>=10000){
+    out = vec4f(atmosphereScatter(dirvec, cam.loc, 100000000, vec3(0,0,0)),1);
+  }*/
+  out = vec4(atmosphereScatter(dirvec, cam.loc, dist, out.xyz),1);
+
   textureStore(randstatetx,pixelcoord,vec4u(randState, 0,0,0));
   let pixidx = pixelcoord.x+pixelcoord.y*width;
   let acc = accumulator[pixidx]+out;
@@ -47,6 +55,15 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
 }
 `
 }
+
+
+
+
+
+
+
+
+
 
 const resetCode = /*wgsl*/`
 @group(0) @binding(0) var randstatetx:texture_storage_2d<r32uint,read_write>;

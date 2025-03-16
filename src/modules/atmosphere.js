@@ -38,12 +38,14 @@ export class AtmosphereConsts{
     this.theta=0;
     this.phi=1;
     this.alt=0;
+    this.alt=100;
     this.setSunPos()
     this.setSunColor(5,5,5);
   }
   setSunPos(alt, phi, theta=undefined){
     this.theta = (theta = theta??this.theta);
     this.phi = (phi = phi??this.phi);
+    this.alt = (alt = alt??this.alt)
     this.cpubuf[0]=Math.cos(theta)*Math.cos(phi);
     this.cpubuf[1]=Math.sin(phi);
     this.cpubuf[2]=Math.sin(theta)*Math.cos(phi);
@@ -91,12 +93,13 @@ export function sceneatmofns(group){
       let ghit = -hcos-sqrt(sqrtval+gRad*gRad-gRad*aWidth/2);
       let dist = min(maxdist, select(aedge,ghit,ghit>0));
       let stepsize = dist/sampleCount;
-      let step = dir*stepsize/2;
+      let step = dir*stepsize;
+      pos+=step*unitRand();
 
+      //return vec3(rphase,mphase,abs(sun.alt)+1);
       var transmittance=vec3f(1,1,1);
       var light=vec3f(0,0,0);
       for(var i=0.; i<sampleCount; i+=1){
-        pos+=step;
         let salt = length(pos)-gRad;
         ${rAt+mAt+oAt+eAt}
         let scoords = vec2f(

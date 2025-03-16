@@ -28,6 +28,7 @@ ver.startWebGPU((device)=>{
   const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif}])
 
   const atmoparams = skyFn(device);
+  window.sun = atmoparams.params;
   
   const cb = new util.Allcb(()=>{
     console.log("here");
