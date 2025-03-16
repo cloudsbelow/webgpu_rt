@@ -7,6 +7,7 @@ import { BasicImageTx } from "./util/gpu/textureHelper.js";
 import * as bvhlib from "./rt/splitter.js";
 import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
+import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -25,6 +26,8 @@ ver.startWebGPU((device)=>{
   device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
   const ubgl = ver.bgl(device, "unifom buffers",[{r:"b"}])
   const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif}])
+
+  const atmoparams = skyFn(device);
   
   const cb = new util.Allcb(()=>{
     console.log("here");
@@ -42,7 +45,7 @@ ver.startWebGPU((device)=>{
 
     const bvhst = bvh.prepare(device)
     const deferedpass = lpass.genpass(device, bvhst, gbs, ubg)
-    const rtpass = genrtpass(device, size, ubg, bvhst)
+    const rtpass = genrtpass(device, size, ubg, bvhst, atmoparams)
     const db_p = debugTex(device, size, deferedpass.tx)
     const rt_p = debugTex(device, size, rtpass.tx)
 

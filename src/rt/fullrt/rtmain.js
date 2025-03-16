@@ -1,6 +1,8 @@
+import { sceneatmofns } from "../../modules/atmosphere.js";
 import * as ver from "../../util/gpu/verbose.js";
 import { keys } from "../../util/util.js";
 import { cgFuncs, randomFuncs } from "../headers/util.js";
+import { scenegeofns } from "./scenetrace.js";
 
 
 
@@ -22,6 +24,8 @@ struct camStruct {
 
 ${randomFuncs}
 ${cgFuncs}
+${scenegeofns(2)}
+${sceneatmofns(3)}
 
 
 ${ver.screenVertexQuad}
@@ -30,11 +34,11 @@ ${ver.screenVertexQuad}
 fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let pixelcoord:vec2u = vec2u(floor(spos.xy));
   randState = pixelcoord.x+pixelcoord.y*width+textureLoad(randstatetx,pixelcoord).x;
-  let ndc=vec4f(spos.xy*2/vec2f(width, -height)-vec2f(1,-1),1,1);
-  let dirvec=(cam.aInv*ndc).xyz;
-
+  let ndc=vec4f((spos.xy-vec2(0.5,0.5)+vec2(unitRand(),unitRand()))*2/vec2f(width, -height)-vec2f(1,-1),1,1);
+  let dirvec=normalize((cam.aInv*ndc).xyz);
+  let dist:f32=raytrace(cam.loc, dirvec, 0.01,10000);
   
-  let out = vec4f(unitRand(),unitRand(),dirvec.y,1);
+  let out = vec4f(1/dist,0,0,1);
   textureStore(randstatetx,pixelcoord,vec4u(randState, 0,0,0));
   let pixidx = pixelcoord.x+pixelcoord.y*width;
   let acc = accumulator[pixidx]+out;
@@ -54,7 +58,7 @@ fn main(@builtin(global_invocation_id) pix:vec3u){
 }
 `
 
-export function genrtpass(device,size,cambg,bvhst){
+export function genrtpass(device,size,cambg,rtdat,atmodat){
   const outtx = ver.tx(device, "rt texture", size, "rgba16float", "ta");
   const randtx = ver.tx(device, "random state texture", size, "r32uint", "s");
   const accbuf = device.createBuffer({
@@ -66,13 +70,16 @@ export function genrtpass(device,size,cambg,bvhst){
 
   const statebgl = ver.bgl(device, "rt state layout", [{r:'w',f:'r32uint',a:"b"},{r:'b',t:"s",v:"cf"}])
   const statebg = ver.bg(statebgl, "rt state group", [randtx.createView(),{buffer:accbuf}]);
-  const rpfn = ver.rp(device, "raytracing shader", [statebgl,cambg.bgl], null, genCode(size), ['rgba16float'],null);
-
+  const rpfn = ver.rp(device, "raytracing shader", 
+    [statebgl,cambg.bgl,rtdat.bgl,atmodat.bgl], 
+  null, genCode(size), ['rgba16float'],null);
+  
   const resetfn = ver.qcp(device, "reset group", resetCode, "main",[statebg]);
 
+  window.rtcode = genCode(size);
   return {
     fn: (encoder)=>{
-      rpfn(encoder, null, 6, null, [outtx], [statebg,cambg])
+      rpfn(encoder, null, 6, null, [outtx], [statebg,cambg, rtdat.bg, atmodat.bg])
       if(keys.KeyR) resetfn(encoder,size[0]*size[1]/32,1,1);
     },
     tx: outtx
