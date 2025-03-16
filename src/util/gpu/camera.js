@@ -1,4 +1,4 @@
-import {b_cc} from "./../util.js";
+import {b_cc, keys} from "./../util.js";
 
 function m4_ident(){
   return new Float32Array([
@@ -81,26 +81,18 @@ function m4_invpersl({
 }
 
 export class Camera{
-  constructor(loc, vdir, {fov=0.8, ar=1, np=0.1, t=true}={}){
+  constructor(loc, vdir, {fov=0.8, ar=1, np=0.1, t=true, keybinds = {
+    forward:'KeyW', left:'KeyA', right:'KeyD', back:'KeyS', up:'Space', down:'ShiftLeft',
+    lookUp:'KeyO',lookDown:'KeyL',lookLeft:'KeyK',lookRight:'Semicolon',
+  }}={}){
     this.params = {
       loc:loc, vdir:vdir,
       fov:fov, ar:ar, np:np, t:t
     }
     this.lu = Date.now()
+    this.binds = keybinds
   }
 }
-let _keys={
-  w:false, a:false, s:false, d:false, ' ':false, shift: false,
-  arrowdown:false, arrowleft:false, arrowright: false, arrowup:false, 
-}
-
-document.addEventListener('keydown',(ev)=>{
-  _keys[ev.key.toLowerCase()]=true;
-});
-
-document.addEventListener('keyup',(ev)=>{
-  _keys[ev.key.toLowerCase()]=false;
-});
 
 Camera.prototype.update = function(){
   let dt=Math.min(100, Date.now()-this.lu);
@@ -108,27 +100,27 @@ Camera.prototype.update = function(){
   let ms=5;
   let as=1.5;
 
-  if(_keys['arrowleft']||_keys['arrowright']){
-    let dir=_keys['arrowleft']*1-_keys['arrowright']*1;
+  if(true){
+    let dir=(keys[this.binds.lookLeft]?1:0)-(keys[this.binds.lookRight]?1:0);
     this.params.vdir[0]+=-dir*dt*0.005*as;
   }
-  if(_keys['arrowup']||_keys['arrowdown']){
-    let dir=_keys['arrowup']*1-_keys['arrowdown']*1;
+  if(true){
+    let dir=(keys[this.binds.lookUp]?1:0)-(keys[this.binds.lookDown]?1:0);
     this.params.vdir[1]+=dir*dt*0.005*as;
   }
   
-  if(_keys['w']||_keys['s']){
-    let dir=_keys['w']*1-_keys['s']*1;
+  if(true){
+    let dir=(keys[this.binds.forward]?1:0)-(keys[this.binds.back]?1:0);
     this.params.loc[2]+=dir*Math.cos(this.params.vdir[0])*dt*0.005*ms;
     this.params.loc[0]+=dir*Math.sin(this.params.vdir[0])*dt*0.005*ms;
   }
-  if(_keys['a']||_keys['d']){
-    let dir=_keys['a']*1-_keys['d']*1;
+  if(true){
+    let dir=(keys[this.binds.left]?1:0)-(keys[this.binds.right]?1:0);
     this.params.loc[0]+=-dir*Math.cos(this.params.vdir[0])*dt*0.005*ms;
     this.params.loc[2]+=dir*Math.sin(this.params.vdir[0])*dt*0.005*ms;
   }
-  if(_keys[' ']||_keys['shift']){
-    let dir=_keys[' ']*1-_keys['shift']*1;
+  if(true){
+    let dir=(keys[this.binds.up]?1:0)-(keys[this.binds.down]?1:0);
     this.params.loc[1]+=dir*dt*0.005*ms;
   }
 }

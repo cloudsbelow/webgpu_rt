@@ -6,6 +6,7 @@ import * as Gbuffers from "./passes/gbuffers.js"
 import { BasicImageTx } from "./util/gpu/textureHelper.js";
 import * as bvhlib from "./rt/splitter.js";
 import * as lpass from "./passes/simpledirect/sdmain.js"
+import { genrtpass } from "./rt/fullrt/rtmain.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -26,6 +27,7 @@ ver.startWebGPU((device)=>{
   const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif}])
   
   const cb = new util.Allcb(()=>{
+    console.log("here");
     const size = [512, 512]
 
     const bvh = objs.bvh = bvhlib.parsebvh(
@@ -35,17 +37,22 @@ ver.startWebGPU((device)=>{
     const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
       ubg, normmap.simplebg()
     ], vbuffile.content, bvh.mIndex().buffer)
-    const db_n = debugTex(device, [256,256], gbs.normal)
-    const db_d = debugTex(device, [256,256], gbs.depth, {ttype:"texture_depth_2d",disp:"vec4(info,info*4,info*16,0)",etype:{r:"t",t:"d"}})
+    //const db_n = debugTex(device, [256,256], gbs.normal)
+    //const db_d = debugTex(device, [256,256], gbs.depth, {ttype:"texture_depth_2d",disp:"vec4(info,info*4,info*16,0)",etype:{r:"t",t:"d"}})
 
-    const deferedpass = lpass.genpass(device, bvh.prepare(device), gbs, ubg)
-    const db_p = debugTex(device, [512,512], deferedpass.tx)
+    const bvhst = bvh.prepare(device)
+    const deferedpass = lpass.genpass(device, bvhst, gbs, ubg)
+    const rtpass = genrtpass(device, size, ubg, bvhst)
+    const db_p = debugTex(device, size, deferedpass.tx)
+    const rt_p = debugTex(device, size, rtpass.tx)
 
     const frame = ()=>{
       cam.update();
       device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
-      ver.enc(device, gbs.draw, deferedpass.fn)
-      db_n(); db_d(); db_p();
+      ver.enc(device, gbs.draw, deferedpass.fn, rtpass.fn)
+      //db_n(); db_d(); 
+      db_p();
+      rt_p();
       if(!objs.stop) requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)
@@ -56,6 +63,6 @@ ver.startWebGPU((device)=>{
   const vbuffile = new util.File(f, spath+bpath+".ver", cb.c)
   const ibuffile = new util.File(f, spath+bpath+".ind", cb.c)
   const normmap = new BasicImageTx(f, spath+ipath, device, cb.c)
-  normmap.when(()=>debugTex(device, [256, 256], normmap)())
+  //normmap.when(()=>debugTex(device, [256, 256], normmap)())
 })
 console.log(ver)

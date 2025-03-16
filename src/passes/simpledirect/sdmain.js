@@ -28,7 +28,7 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   if(depth>1000){
     //return vec4(2*ambient,0);
   } 
-  let shadow = 10000;//raytrace(worldpos+0.001*norm, sundir, 100);
+  let shadow = raytrace(worldpos+0.001*norm, sundir, 100);
   let intensity = max(0,dot(norm,sundir))*b(shadow>=100);
 
   

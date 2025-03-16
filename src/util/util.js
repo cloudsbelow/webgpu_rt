@@ -58,31 +58,38 @@ export class Queue{
   }
 }
 
-export class BaseAsyncObj{
-  constructor(context, cb = null){
-    this.onSettle = new Queue()
-    if(cb) this.onSettle.enqueue(cb)
-    this.ctx = context
-    this.unrest = 1; //by default, objects need one settle
-    this.settle = this.settle.bind(this)
+export class BAsyncObj{
+  constructor(unrest=1){
+    this._u=unrest;
+    this._f=null
+    this._l=null
+    this.settle = this.settle.bind(this);
+    this.unsettle = this.unsettle.bind(this);
+    this.when = this.when.bind(this);
+  }
+  when(fn){
+    if(this.unrest==0&&!this._f) fn(this);
+    else {
+      let temp=[fn,null]
+      if(this._f){
+        this._l[1]=temp
+        this._l=temp
+      } else {
+        this._f=temp
+        this._l=temp
+      }
+    }
+    return this
   }
   settle(){
-    this.unrest--;
-    while(this.onSettle.peak()){
-      if(this.unrest) break;
-      this.onSettle.dequeue()(this);
+    this._u--;
+    while(this._u==0 && this._f){
+      this._f[0](this)
+      this._f=this._f[1]
     }
   }
   unsettle(){
-    this.unrest++
-  }
-  when(fn){
-    if(this.unrest == 0){
-      fn(this)
-    } else {
-      this.onSettle.enqueue(fn)
-    }
-    return this;
+    this._u++;
   }
 }
 
@@ -148,11 +155,12 @@ export class StreamCache{
 }
 
 
-export class File extends BaseAsyncObj{
+export class File extends BAsyncObj{
   constructor(context, path, cb){
-    super(context, cb)
+    super()
     this.found = false;
     context.getfile(path, this.foundcb)
+    this.when(cb);
   }
   foundcb = (err, content)=>{
     this.content = content
@@ -181,7 +189,7 @@ export class FileContextRemote{
   }
 }
 
-export class FileContextServer extends BaseAsyncObj{
+export class FileContextServer extends BAsyncObj{
   constructor(url, basepath){
     super()
     this.url = url;
@@ -216,3 +224,51 @@ export class FileContextServer extends BaseAsyncObj{
     })
   }
 }
+
+function initializingHandler(constr,remap=null){
+  return {get:(targ,p,rec)=>{
+    if(remap) p=remap(p)
+    if(targ[p] === undefined){
+      targ[p] = constr()
+    }
+    return targ[p]
+  }}
+}
+const onfns = {
+  down:{label:"down"},
+  up:{label:"up"}
+}
+const remapkey = (key)=>{
+  if(key.length == 1) return "Key"+key.toUpperCase();
+  return key;
+}
+export const keys = {
+  on: new Proxy(onfns.down,initializingHandler(()=>new Set(),remapkey)),
+  onup: new Proxy(onfns.up,initializingHandler(()=>new Set(),remapkey))
+}
+window.addEventListener("keydown",(ev)=>{
+  keys[ev.code]=Date.now();
+  let m;
+  if(m=onfns.down[ev.code]){
+    m.forEach(f=>f(ev))
+  }
+})
+window.addEventListener("keyup",(ev)=>{
+  let delt = Date.now()-keys[ev.key];
+  keys[ev.code]=0;
+  let m;
+  if(m=onfns.up[ev.code]){
+    m.forEach(f=>f(ev,delt))
+  }
+})
+
+export const mouseClientPos={x:0,y:0};
+window.addEventListener("mousemove",(ev)=>{
+  mouseClientPos.x=ev.clientX
+  mouseClientPos.y=ev.clientY
+})
+
+export function clamp(f,l,h){
+  return f<l?l:(f>h?h:f)
+}
+window.keys = keys

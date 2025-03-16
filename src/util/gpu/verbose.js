@@ -1,3 +1,5 @@
+
+
 export function startWebGPU(callback, verbose = false){
   if (!navigator.gpu) {
     throw new Error("WebGPU not supported on this browser.");
@@ -14,16 +16,25 @@ export function startWebGPU(callback, verbose = false){
   });
 }
 
-export function linkCanvas(device, canvas){
+export function linkCanvas(device, canvas, usage){
   const context = canvas.getContext("webgpu");
-  canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
   context.configure({
     device: device,
     format: canvasFormat,
+    usage: usage
   });
-  return [context, canvas];
+  return [context, canvas, canvasFormat];
 }
 
+/**
+ * @typedef {Object} bgLayoutEntry
+ * @property {string|number} v visibility - leave empty unless fancy <3
+ * @property {string} r resource type t(exture) w(ritable) s(ampler) b(uffer)
+ * @property {string} t texture->fndsu sampler->fnc) biffer->urs
+ * @property {string} d dimensions(1,2,3d or a(rray),c(ube),ca)
+ * @property {string} fso format, minbindingsize or offset (individual)
+ */
 function c_bgle(entry, i){
   let e={};
   e.binding=i;
@@ -62,9 +73,16 @@ function c_bgle(entry, i){
     
     
   }
+
+  const accesstypes = {
+    w:"write-only",
+    r:"read-only",
+    b:"read-write",
+  }
   if(entry.r=="w"){ //fd
     e.storageTexture={
       format: entry.f,
+      access: accesstypes[entry.a]??entry.a??"write-only",
       viewDimension: tdimensions[entry.d]??entry.d??"2d",
     };
   }
@@ -95,6 +113,13 @@ function c_bgle(entry, i){
 
   return e
 }
+/**
+ * 
+ * @param {*} device device
+ * @param {string} label 
+ * @param {bgLayoutEntry[]} entries 
+ * @returns {*} bind group layout
+ */
 export function bgl(device, label, entries){
   const bgl = device.createBindGroupLayout({
     label:label,
@@ -120,6 +145,16 @@ const TextureUsageMap = {
   s: GPUTextureUsage.STORAGE_BINDING,
   a: GPUTextureUsage.RENDER_ATTACHMENT,
 }
+/**
+ * 
+ * @param {*} device 
+ * @param {*} label 
+ * @param {*} dim 
+ * @param {*} format 
+ * @param {*} usage cdtsa
+ * @param {*} opt 
+ * @returns 
+ */
 export function tx(device, label, dim, format, usage, opt={}){
   let u = 0;
   for(let i=0; i<usage.length; i++) u|=TextureUsageMap[usage[i]];
@@ -213,11 +248,16 @@ export function rp(device, label, layouts, vertexbuflayout, code, targets, depth
   })
   return (encoder, vertexbuf, indexbuf, depth, attachments, bgs)=>{
     const pass = encoder.beginRenderPass({
-      colorAttachments: attachments.map(a=>({
+      colorAttachments: attachments.map(a=>((a instanceof GPUTexture)?{
         view: a.createView(),
         loadOp: "clear",
         clearValue:[0,0,0,0.1],
         storeOp: "store"
+      }:{
+        view: a.tex.createView(),
+        loadOp:a.loadOp??"clear",
+        clearValue:a.clearValue??[0,0,0,0.1],
+        storeOp: a.storeOp??"store",
       })),
       depthStencilAttachment: depth?{
         view: depth.createView(),
@@ -235,6 +275,8 @@ export function rp(device, label, layouts, vertexbuflayout, code, targets, depth
     })
     if(typeof indexbuf == 'number'){
       pass.draw(indexbuf)
+    } else if(Array.isArray(indexbuf) && indexbuf.length<=4){
+      pass.draw(...indexbuf)
     }else{
       pass.setIndexBuffer(indexbuf, "uint32")
       pass.drawIndexed(indexbuf.num); 
