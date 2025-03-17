@@ -39,8 +39,10 @@ export class AtmosphereConsts{
     this.phi=1;
     this.alt=0;
     this.alt=100;
+    this.gain = 1;
     this.setSunPos()
     this.setSunColor(5,5,5);
+    this.setGain()
   }
   setSunPos(alt, phi, theta=undefined){
     this.theta = (theta = theta??this.theta);
@@ -58,6 +60,11 @@ export class AtmosphereConsts{
     this.cpubuf[6]=b;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
   }
+  setGain(g){
+    this.gain = (g=g??this.gain);
+    this.cpubuf[7]=g
+    this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
+  }
 }
 
 export function sceneatmofns(group){
@@ -69,6 +76,7 @@ export function sceneatmofns(group){
       dir:vec3f, //MUST BE UNIT
       alt:f32,
       col:vec3f,
+      gain:f32,
     }
     @group(${group}) @binding(3) var<uniform> sun:sunStruct;
     
@@ -77,7 +85,7 @@ export function sceneatmofns(group){
       transmittance:vec3f,
     }
 
-    fn atmosphereScatter(dir:vec3f, rpos:vec3f, maxdist:f32, origcolor:vec3f)->vec3f{
+    fn atmosphereScatter(dir:vec3f, rpos:vec3f, maxdist:f32)->atmosphereResult{
       const sampleCount = 20.;
       var pos=vec3f(0,sun.alt+gRad,0)+rpos;
       let ct=dot(dir,sun.dir);
@@ -122,7 +130,20 @@ export function sceneatmofns(group){
         transmittance *= segtrans;
         pos+=step;
       }
-      return light+transmittance*origcolor;
+      var ret:atmosphereResult;
+      ret.inscat = light*sun.col;
+      ret.transmittance = transmittance;
+      return ret;
+    }
+
+    fn getSunPower(rpos:vec3f)->vec3f{
+      let pos=vec3f(0,sun.alt+gRad,0)+rpos;
+      let salt = length(pos)-gRad;
+      let scoords = vec2f(
+        acos(dot(pos, sun.dir)/length(pos))/PI,
+        salt/aWidth
+      );
+      return textureSampleLevel(trans, fsampler, scoords, 0).xyz*sun.col;
     }
   `
 }

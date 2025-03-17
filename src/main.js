@@ -34,9 +34,15 @@ ver.startWebGPU((device)=>{
     console.log("here");
     const size = [512, 512]
 
-    const bvh = objs.bvh = bvhlib.parsebvh(
-      vbuffile.content, ibuffile.content
-    ).makeRoot({method: bvhlib.sahsplit})//.t[1].t[1].t[0].t[0].t[1]//.t[1]//.t[0]//.t[1]
+    // const bvh = window.bvh = bvhlib.parsebvh(
+    //   vbuffile.content, ibuffile.content,[]
+    // ).makeRoot({method: bvhlib.sahsplit})//.t[1].t[1].t[0].t[0].t[1]//.t[1]//.t[0]//.t[1]
+    // const bvh = window.bvh = bvhlib.parsebvh(
+    //   [0,0,0, 1,1,1, 0,1,0, 2,3,2], new Uint32Array([0,1,2]), [[0,1,1],[3,1,1]]
+    // ).makeRoot({method: bvhlib.sahsplit})
+    const bvhctx = window.bvhctx = new bvhlib.BVHContext()
+    bvhctx.addTris(vbuffile.content, ibuffile.content)
+    const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
     const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
       ubg, normmap.simplebg()

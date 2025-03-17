@@ -15,24 +15,43 @@ fn closeHit(a:disthit, b:disthit)->disthit{
   ret.address = select(a.address, b.address, b.dist<a.dist);
   return ret;
 }
-fn raytri(pos:vec3f, dir:vec3f, triidx:vec3u, tmin:f32, tmax:f32, address:u32)->disthit{
+fn raytri(pos:vec3f, dir:vec3f, triidx:vec3u, tmin:f32, tmax:f32, address:u32, iscircle:bool)->disthit{
   let p1 = vec3f(rt_vertices[triidx.x*3+0],rt_vertices[triidx.x*3+1],rt_vertices[triidx.x*3+2]);
   let p2 = vec3f(rt_vertices[triidx.y*3+0],rt_vertices[triidx.y*3+1],rt_vertices[triidx.y*3+2]);
   let p3 = vec3f(rt_vertices[triidx.z*3+0],rt_vertices[triidx.z*3+1],rt_vertices[triidx.z*3+2]);
 
-  let e1 = p2-p1;
-  let e2 = p3-p1;
-  let cr = cross(dir, e2);
-  let det = dot(e1, cr);
-  let idet = 1/det;
-  let dp = pos-p1;
-  let u = idet*dot(dp,cr);
-  let cs = cross(dp, e1);
-  let v = idet*dot(dir, cs);
-  let t = idet*dot(e2,cs);
   var ret:disthit;
-  ret.dist = select(tmax, t, u>0 && v>0 && u+v<1 && t>tmin && t<tmax);
   ret.address = address;
+  ret.dist = tmax;
+  if(!iscircle){
+    let e1 = p2-p1;
+    let e2 = p3-p1;
+    let cr = cross(dir, e2);
+    let det = dot(e1, cr);
+    let idet = 1/det;
+    let dp = pos-p1;
+    let u = idet*dot(dp,cr);
+    let cs = cross(dp, e1);
+    let v = idet*dot(dir, cs);
+    let t = idet*dot(e2,cs);
+    if(u>0 && v>0 && u+v<1 && t>tmin && t<tmax){
+      ret.dist = t;
+    }
+    return ret;
+  } else {
+    let l = pos-p1;
+    let ct = dot(dir, l);
+    let det = sqrt(ct*ct-dot(l,l)+1);
+    let nearhit = -ct-det;
+    if(-ct-det<tmax && -ct-det>tmin){
+      ret.dist = -ct-det;
+      return ret;
+    }
+    if(-ct+det<tmax && -ct+det>tmin){
+      ret.dist = -ct+det;
+      return ret;
+    }
+  }
   return ret;
 }
 fn b(b:bool)->f32{
@@ -43,6 +62,7 @@ struct hitInfo{
   dist:f32,
   normal: vec3f,
   wpos: vec3f,
+  didhit:bool,
 }
 fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
   let leafidx = h.address >> 2;
@@ -54,25 +74,25 @@ fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
   let p1 = vec3f(rt_vertices[triidx.x*3+0],rt_vertices[triidx.x*3+1],rt_vertices[triidx.x*3+2]);
   let p2 = vec3f(rt_vertices[triidx.y*3+0],rt_vertices[triidx.y*3+1],rt_vertices[triidx.y*3+2]);
   let p3 = vec3f(rt_vertices[triidx.z*3+0],rt_vertices[triidx.z*3+1],rt_vertices[triidx.z*3+2]);
+  let iscircle:bool = (bitcast<u32>(rt_bvh[leafidx*16])&(0x100u<<subidx))!=0;
 
-  let e1 = p2-p1;
-  let e2 = p3-p1;
-  // let cr = cross(dir, e2);
-  // let det = dot(e1, cr);
-  // let idet = 1/det;
-  // let dp = pos-p1;
-  // let u = idet*dot(dp,cr);
-  // let cs = cross(dp, e1);
-  // let v = idet*dot(dir, cs);
-  // let t = idet*dot(e2,cs);
   var ret:hitInfo;
   ret.dist = h.dist;
-  ret.normal = normalize(cross(e1,e2));
   ret.wpos = h.dist*dir+pos;
+  ret.didhit = true;
+
+  if(iscircle){
+    ret.normal = normalize(ret.wpos-p1);
+  } else {
+    let e1 = p2-p1;
+    let e2 = p3-p1;
+    ret.normal = normalize(cross(e2,e1));
+  }
+  //ret.normal = vec3(f32(leafidx)+0.1,f32(subidx)/)
   return ret;
 }
 
-fn raytrace(pos:vec3f, dir:vec3f, tmin_:f32, tmax_:f32)->f32{
+fn raytrace(pos:vec3f, dir:vec3f, tmin_:f32, tmax_:f32)->hitInfo{
   var searchstack:array<u32, 24>;
   var stackidx:u32 = 1;
   searchstack[0] = 0;
@@ -90,7 +110,8 @@ fn raytrace(pos:vec3f, dir:vec3f, tmin_:f32, tmax_:f32)->f32{
     let v4 = vec3f(rt_bvh[offset+10],rt_bvh[offset+11],rt_bvh[offset+12]);
     let dinv = 1/dir;
 
-    if(bitcast<u32>(rt_bvh[offset])==0){ //non-leaf node
+    let info = bitcast<u32>(rt_bvh[offset]);
+    if(info==0){ //non-leaf node
       //return vec4f(0,1,1,0);
       var tmin:array<f32,2>;
       var tmax:array<f32,2>;
@@ -125,17 +146,19 @@ fn raytrace(pos:vec3f, dir:vec3f, tmin_:f32, tmax_:f32)->f32{
       // t=min(raytri(pos, dir, bitcast<vec3<u32>>(v3)),t);
       // t=min(raytri(pos, dir, bitcast<vec3<u32>>(v4)),t);
       var addrcomp = idx*4;
-      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v1), tmin_, tmax_, addrcomp+0));
-      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v2), tmin_, tmax_, addrcomp+1));
-      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v3), tmin_, tmax_, addrcomp+2));
-      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v4), tmin_, tmax_, addrcomp+3));
+      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v1), tmin_, tmax_, addrcomp+0, (info&0x100)!=0));
+      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v2), tmin_, tmax_, addrcomp+1, (info&0x200)!=0));
+      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v3), tmin_, tmax_, addrcomp+2, (info&0x400)!=0));
+      bhit=closeHit(bhit, raytri(pos, dir, bitcast<vec3<u32>>(v4), tmin_, tmax_, addrcomp+3, (info&0x800)!=0));
     }
   }
   if(bhit.dist<tmax_){
-    let info = recoverHitinfo(bhit,pos,dir);
-    return info.dist;
+    return recoverHitinfo(bhit,pos,dir);
   }
-  return bhit.dist;
+  var a:hitInfo;
+  a.dist = tmax_;
+  a.didhit = false;
+  return a;
 }
   `;
 }

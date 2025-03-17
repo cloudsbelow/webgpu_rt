@@ -21,7 +21,7 @@ export const cgFuncs = /*wgsl*/`
 
 fn srgb(v:vec4f) -> vec4f{
   let nv=clamp(v,vec4(0,0,0,0),vec4(1,1,1,1));
-  return select(12.92*nv, pow(nv, vec4(1,1,1,1)/2.4), nv>=0.0031308*vec4(1,1,1,1));
+  return select(12.92*nv, pow(nv, vec4(1,1,1,1)/2.4)*1.055-0.055, nv>=0.0031308*vec4(1,1,1,1));
 }
   //return np.where(v <= 0.0031308, 12.92 * v, 1.055 * (v ** (1/2.4)) - 0.055)
 `

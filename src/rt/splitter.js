@@ -36,7 +36,6 @@ function sahbestsplit(c, o){
     dmin = v3_min(dmin, c.l[o[o.length-i-1]])
     dmax = v3_max(dmax, c.h[o[o.length-i-1]])
   }
-  //console.log(sasc, sdesc)
   const opt = ch.min(ch.range(o.length-1), idx=>sasc[idx]+sdesc[idx])
   return [opt[1]+1,opt[2]]
 }
@@ -44,7 +43,7 @@ export function sahsplit(c,idxs){
   let bestsplit=[];
   let bestscore = Infinity;
   for(let d=0; d<3; d++){
-    const order = idxs.toSorted((a,b)=>c.h[a][d]-c.h[b][d])
+    const order = idxs.toSorted((a,b)=>c.c[a][d]-c.c[b][d])
     let [splitidx, score] = sahbestsplit(c,order)
     if(score<bestscore){
       bestscore = score;
@@ -60,15 +59,15 @@ class BVHNode{
     this.count = idxs.length
     if(idxs.length<=leafsize){
       this.leaf = true;
-      this.tris = Array.from(idxs);
+      this.prims = Array.from(idxs);
     } 
     else {
       this.t = method(c, idxs).map(split=>new BVHNode(c, split, arguments[2]))
     }
     this.ctx=c;
     if(this.leaf){
-      this.aabbl = this.tris.map(x=>c.l[x]).reduce(v3_min)
-      this.aabbh = this.tris.map(x=>c.h[x]).reduce(v3_max)
+      this.aabbl = this.prims.map(x=>c.l[x]).reduce(v3_min)
+      this.aabbh = this.prims.map(x=>c.h[x]).reduce(v3_max)
     } else {
       this.aabbl = v3_min(this.t[0].aabbl, this.t[1].aabbl)
       this.aabbh = v3_max(this.t[0].aabbh, this.t[1].aabbh)
@@ -77,7 +76,7 @@ class BVHNode{
   }
 }
 BVHNode.prototype.mIndex = function(){
-  if(this.leaf) return b_cc(...this.tris.map(idx=>this.ctx.x[idx]));
+  if(this.leaf) return b_cc(...this.prims.map(idx=>this.ctx.isTri(idx)?this.ctx.x[idx]:new Uint8Array(0)));
   return b_cc(this.t[0].mIndex(), this.t[1].mIndex())
 }
 BVHNode.prototype.depth = function(){
@@ -98,14 +97,19 @@ BVHNode.prototype.bvhbuf = function(){
     2x uint child 
   */
   let vbuf = [];
+  const ctx = this.ctx;
   function add(node){
     let idx = vbuf.length;
     let repr = new Uint8Array(64)
     const v = new DataView(repr.buffer)
     vbuf.push(repr)
     if(node.leaf){ //should have used b_cc lmao
-      v.setUint32(0, node.tris.length, true)
-      node.tris.forEach((i, j)=>{
+      let flags = node.prims.length
+      for(let i=0; i<node.prims.length; i++){
+        flags+=(!ctx.isTri(node.prims[i]))?(1<<8+i):0
+      }
+      v.setUint32(0, flags, true)
+      node.prims.forEach((i, j)=>{
         const vs = node.ctx.x[i];
         //console.log(vs)
         v.setUint32(4+j*12, vs[0], true)
@@ -152,36 +156,91 @@ BVHNode.prototype.prepare = function(device, vertexbuf = null){
   }
 }
 
-class BVHContext{
-  constructor(v, indices){
-    this.v=v; this.x = indices;
-    this.c = indices.map(([i1,i2,i3])=>{
+export class BVHContext{
+  constructor(){
+    this.v = []
+    this.l = []
+    this.h = []
+    this.c = []
+    this.x = []
+    this.triset = new Set()
+    /*this.v=v; 
+    this.triidxs = triindices;
+    this.cidxs = circleindices; 
+    this.c = triindices.map(([i1,i2,i3])=>{
       return ch.v_lop(1/3, v[i1], 1/3, v[i2], 1/3, v[i3])
     })
-    this.l = indices.map(([i1,i2,i3])=>{
+    this.l = triindices.map(([i1,i2,i3])=>{
       return ch.v_red(Math.min, v[i1], v[i2], v[i3]).map(x=>x-0.001);
     })
-    this.h = indices.map(([i1,i2,i3])=>{
+    this.h = triindices.map(([i1,i2,i3])=>{
       return ch.v_red(Math.max, v[i1], v[i2], v[i3]).map(x=>x+0.001)
     })
-    this.n = this.x.length
+    for(let i=0; i<circleindices.length; i++){
+      let [center, span, rotation] = circleindices[i]
+      this.c.push(ch.v_lop(1,v[center]))
+      this.l.push(ch.v_lop(1,v[center],-1,v[span]))
+      this.h.push(ch.v_lop(1,v[center],-1,v[span]))
+    }
+    this.x = this.triidxs.concat(this.cidxs)*/
   }
   makeRoot(options={}){
-    return new BVHNode(this, ch.range(this.n),options)
+    this.n = this.x.length;
+    return this.bvh= new BVHNode(this, ch.range(this.n),options)
+  }
+  isTri(idx){
+    return this.triset.has(idx);
+  }
+  addTris(vbuf, ibuf, {
+    posoffset=0, vstride=16,
+    istride = 12, idtype = Uint32Array, vshift = [0,0,0]
+  }={}){
+    let vo = this.v.length;
+    if(vbuf instanceof ArrayBuffer){
+      let vs = new Float32Array(vshift)
+      for(let i=0; i<vbuf.byteLength/vstride; i++){
+        this.v.push(ch.v_lop(1,new Float32Array(vbuf, i*vstride+posoffset, 3),1,vs))
+      }
+    } else for(let i=0; i<vbuf.length; i+=3){
+      this.v.push(new Float32Array([vbuf[0+i]+vshift[0],vbuf[1+i]+vshift[1],vbuf[2+i]+vshift[2]]))
+    }
+    
+    if(ibuf instanceof ArrayBuffer) ibuf = new idtype(ibuf);
+    let v=this.v;
+    for(let i=0; i<ibuf.length; i+=3){
+      let indices = new Uint32Array([ibuf[0+i]+vo,ibuf[1+i]+vo,ibuf[2+i]+vo])
+      let [i1,i2,i3] = indices
+      this.triset.add(this.x.length);
+      this.x.push(indices)
+      this.c.push(ch.v_lop(1/3, v[i1], 1/3, v[i2], 1/3, v[i3]))
+      this.l.push(ch.v_red(Math.min, v[i1], v[i2], v[i3]).map(x=>x-0.001))
+      this.h.push(ch.v_red(Math.max, v[i1], v[i2], v[i3]).map(x=>x+0.001))
+    }
+    this.n = this.x.length;
+  }
+  addCircles(vbuf, ibuf){
+    
   }
 }
 
-export function parsebvh(vbuf, ibuf, {
+export function parsebvh(vbuf, ibuf, carr=[], {
   posoffset=0, vstride=16,
   istride = 12, idtype = Uint32Array
 }={}){
   let v=[];
-  for(let i=0; i<vbuf.byteLength/vstride; i++){
-    v.push(new Float32Array(vbuf, i*vstride+posoffset, 3))
-  }
+  
   let indices=[];
-  for(let i=0; i<ibuf.byteLength/istride; i++){
-    indices.push(new idtype(ibuf, i*istride, 3))
+  if(ibuf instanceof ArrayBuffer){
+    for(let i=0; i<ibuf.byteLength/istride; i++){
+      indices.push(new idtype(ibuf, i*istride, 3))
+    }
+  } else {
+    
   }
-  return new BVHContext(v, indices)
+  let cindices = []
+  for(let i=0; i<carr.length; i++){
+    let nums = [carr[i][0],carr[i][1],carr[i][2]]
+    cindices.push(new idtype(nums))
+  }
+  return new BVHContext(v, indices,cindices)
 }
