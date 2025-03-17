@@ -32,18 +32,21 @@ export class AtmosphereConsts{
     this.device = device;
     this.gpubuf = device.createBuffer({
       label: "Sky Uniform",
-      size: 8*4,
+      size: 12*4,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    this.cpubuf = new Float32Array(8);
+    this.cpubuf = new Float32Array(12);
     this.theta=0;
     this.phi=1;
     this.alt=0;
     this.alt=100;
     this.gain = 1;
+    this.sundiskangle=0.07;
+    this.sundiskimportance=0.3;
     this.setSunPos()
     this.setSunColor(5,5,5);
     this.setGain()
+    this.setSundisk()
   }
   setSunPos(alt, phi, theta=undefined){
     this.theta = (theta = theta??this.theta);
@@ -53,6 +56,8 @@ export class AtmosphereConsts{
     this.cpubuf[1]=Math.sin(phi);
     this.cpubuf[2]=Math.sin(theta)*Math.cos(phi);
     this.cpubuf[3]=alt;
+    this.cpubuf[8]=theta;
+    this.cpubuf[9]=phi;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
     globalResetBuffer.buffer()
   }
@@ -66,6 +71,13 @@ export class AtmosphereConsts{
   setGain(g){
     this.gain = (g=g??this.gain);
     this.cpubuf[7]=g
+    this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
+  }
+  setSundisk(importance, angle){
+    this.sundiskangle=(angle = angle??this.sundiskangle);
+    this.sundiskimportance=(importance = importance??this.sundiskimportance);
+    this.cpubuf[10]=angle;
+    this.cpubuf[11]=importance;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
     globalResetBuffer.buffer()
   }
@@ -81,6 +93,10 @@ export function sceneatmofns(group){
       alt:f32,
       col:vec3f,
       gain:f32,
+      suntheta:f32,
+      sunphi:f32,
+      sundisk:f32,
+      sundiskshare:f32,
     }
     @group(${group}) @binding(3) var<uniform> sun:sunStruct;
     
@@ -137,6 +153,9 @@ export function sceneatmofns(group){
       var ret:atmosphereResult;
       ret.inscat = light*sun.col;
       ret.transmittance = transmittance;
+      if(dot(dir, sun.dir)>cos(sun.sundisk) && maxdist>=maxSceneDist){
+        ret.inscat += sun.col*transmittance/(1-cos(sun.sundisk))/5;
+      }
       return ret;
     }
 

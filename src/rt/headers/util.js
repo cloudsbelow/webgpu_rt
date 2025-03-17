@@ -23,6 +23,23 @@ fn hemisphereRand(center:vec3f)->vec3f{
   return d*select(1.,-1.,dot(center,d)<0);
 }
 
+fn coneRandUpX(angle:f32)->vec3f{
+  let ca = cos(angle);
+  let alt = unitRand()*(1-ca)+ca;
+  let scomp = sqrt(1-alt*alt);
+  let theta = unitRand()*2*PI;
+  return vec3(alt, scomp*cos(theta),scomp*sin(theta));
+}
+fn coneRandDir(theta:f32, phi:f32, angle:f32)->vec3f{
+  let v = coneRandUpX(angle);
+  let vp = vec3(cos(phi)*v.x-sin(phi)*v.y, sin(phi)*v.x+cos(phi)*v.y, v.z);
+  return vec3(cos(theta)*vp.x+sin(theta)*vp.z,vp.y,-sin(theta)*vp.x+cos(theta)*vp.z);
+}
+fn coneSize(angle:f32)->f32{
+  let ca = cos(angle);
+  return 2*PI*(1-ca);
+}
+
 `
 
 

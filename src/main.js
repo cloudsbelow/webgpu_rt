@@ -40,9 +40,10 @@ ver.startWebGPU((device)=>{
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
     for(let i=0; i<40; i++){
-      bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,1,0]));
+      bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,0,0,3]));
     }
     bvhctx.addCircle([10000,0,10000],7000,materials.glow);
+    bvhctx.addTris(vbuffile.content,ibuffile.content,materials.glowglass,{vshift: [10,0,20]})
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
     // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
@@ -54,6 +55,7 @@ ver.startWebGPU((device)=>{
     const rtpass = genrtpass(device, size, ubg, bvhst, atmoparams)
     //const db_p = debugTex(device, size, deferedpass.tx)
     const rt_p = debugTex(device, size, rtpass.tx)
+    onDoneLoad()
 
     const frame = ()=>{
       cam.update();
@@ -73,3 +75,9 @@ ver.startWebGPU((device)=>{
   //normmap.when(()=>debugTex(device, [256, 256], normmap)())
 })
 console.log(ver)
+
+
+
+function onDoneLoad(){
+  //sun.setSunPos(0,-1)
+}

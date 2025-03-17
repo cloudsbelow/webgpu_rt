@@ -3,7 +3,7 @@ import { globalResetBuffer } from "../../util/gpu/camera.js";
 import * as ver from "../../util/gpu/verbose.js";
 import { keys } from "../../util/util.js";
 import { cgFuncs, randomFuncs } from "../headers/util.js";
-import { scenematfns } from "./materialfns.js";
+import { Material, scenematfns } from "./materialfns.js";
 import { scenegeofns } from "./scenetrace.js";
 
 
@@ -35,6 +35,8 @@ ${scenematfns(1,1)}
 fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
   var light = vec3f(0,0,0);
   var trans = vec3f(1,1,1);
+  var absorb = vec3f(0,0,0);
+  var volemit = vec3f(0,0,0);
   var pos = spos;
   var dir = sdir;
   for(var i:u32=0; i<depth; i++){
@@ -42,18 +44,29 @@ fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
     let atmo = atmosphereScatter(dir, pos, hit.dist);
     light+=trans*atmo.inscat;
     trans*=atmo.transmittance;
+
+    let segtrans = exp(-hit.dist*absorb);
+    let inoutscat = volemit / (absorb+vec3f(1,1,1)*0.001);
+    light += (-inoutscat*segtrans+inoutscat)*trans;
+    trans *= segtrans;
+    
     if(!hit.didhit){
       return light;
     }
-    let directSun = getSunPower(hit.wpos)*evaluatePhong(hit.normal, dir, sun.dir, hit.material);
-    if(directSun.r>0){
-      let shadowray = raytrace(hit.wpos, sun.dir, minSceneDist*(1+length(pos)),maxSceneDist).dist;
-      if(shadowray>=maxSceneDist){
-        light+=trans*directSun;
-      }
-    }
+    // let directSun = getSunPower(hit.wpos)*evaluatePhong(hit.normal, dir, sun.dir, hit.material);
+    // if(directSun.r>0){
+    //   let shadowray = raytrace(hit.wpos, sun.dir, minSceneDist*(1+length(pos)),maxSceneDist).dist;
+    //   if(shadowray>=maxSceneDist){
+    //     light+=trans*directSun;
+    //   }
+    // }
     let sample = sampleBRDF(hit.normal, dir, hit.material);
-    light+=trans*sample.emit;
+    if(sample.transmitsign==0){
+      light+=trans*sample.emit;
+    } else {
+      absorb = max(absorb+sample.absorb*f32(sample.transmitsign),vec3f(0,0,0));
+      volemit = min(volemit+sample.emit*f32(sample.transmitsign),vec3f(0,0,0));
+    }
     if(sample.terminate){
       return light;
     }
@@ -79,7 +92,10 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let ndc=vec4f((spos.xy-vec2(0.5,0.5)+vec2(unitRand(),unitRand()))*2/vec2f(width, -height)-vec2f(1,-1),1,1);
   let dirvec=normalize((cam.aInv*ndc).xyz);
 
-  var out = vec4(getRadiance(cam.loc, dirvec, 20),1);
+  var out = vec4f(0,0,0,0);
+  for(var i=0; i<10; i++){
+    out+=vec4(getRadiance(cam.loc, dirvec, 20),1);
+  }
 
   textureStore(randstatetx,pixelcoord,vec4u(randState, 0,0,0));
   let pixidx = pixelcoord.x+pixelcoord.y*width;
