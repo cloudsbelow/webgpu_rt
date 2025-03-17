@@ -39,6 +39,18 @@ export function v_red(fn, ...bufs){
   return c;
 }
 
+export function v3_uniform(n1,n2){
+  let min=n1;
+  let max=n2;
+  if(n1===undefined){
+    min=0; max=1;
+  } else if(n2 === undefined){
+    min=0; max=n1;
+  }
+  let dif = max-min;
+  return new Float32Array([Math.random()*dif+min, Math.random()*dif+min, Math.random()*dif+min])
+}
+
 export function range(n){
   let c = new Uint32Array(n);
   for(let i=0; i<n; i++) c[i]=i;

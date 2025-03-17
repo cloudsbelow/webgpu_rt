@@ -9,6 +9,7 @@ import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 import { materials } from "./rt/fullrt/materialfns.js";
+import { v3_uniform } from "./util/menial/convenience.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -18,7 +19,8 @@ lib.bvhlib = bvhlib
 const f = new util.FileContextRemote("f");
 
 ver.startWebGPU((device)=>{
-  const cam = objs.cam = new Camera([0,2,0],[0,0],{np:0.1, fov:0.8});
+  const size = [1024, 720]
+  const cam = objs.cam = new Camera([0,2,0],[0,0],{np:0.1, fov:0.8, ar:size[1]/size[0]});
   const camUnif = device.createBuffer({
     label: "Camera Uniform",
     size: 16*4*2+16,
@@ -35,11 +37,11 @@ ver.startWebGPU((device)=>{
   window.sun = atmoparams.params;
   
   const cb = new util.Allcb(()=>{
-    console.log("here");
-    const size = [512, 512]
-
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
+    for(let i=0; i<40; i++){
+      bvhctx.addCircle(v3_uniform(-10,10),1,materials.mirror);
+    }
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
     // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [

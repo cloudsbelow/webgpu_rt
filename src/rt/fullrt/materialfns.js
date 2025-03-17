@@ -55,6 +55,9 @@ export class Material{
       v.setFloat32(Material[f+"Offset"]*4+offset,this[f],true)
     })
   }
+  valueOf(){
+    return this.idx;
+  }
 }
 export class MaterialRegistry{
   constructor(){
@@ -124,12 +127,12 @@ export function scenematfns(group, binding){
     if(r<0){
       let outdir = hemisphereRand(normal);
       //diffuse
-      var color = max(0,dot(normal, outdir))*diffuseInfo.xyz;
+      var color = max(0,dot(normal, outdir))*diffuseInfo.rgb;
       //specular
       let specularInfo = materialVec(id, ${Material.specularGO});
-      color += pow(max(0,dot(reflectDir, outdir)),specularInfo.w)*specularInfo.xyz;
+      color += pow(max(0,dot(reflectDir, outdir)),specularInfo.w)*specularInfo.rgb;
       b.dir = outdir;
-      b.through = color;
+      b.through = max(color,vec3f(0,0,0));
       return b;
     }
     b.terminate = true;
@@ -149,8 +152,11 @@ export function scenematfns(group, binding){
 
 const registry = new MaterialRegistry();
 const basic = new Material(); registry.register(basic);
+const mirror = new Material({
+  diffuse:0, reflectivity:0.99, reflectCol:[1,1,1]
+}); registry.register(mirror);
 export const materials = window.materials = {
   basic:basic, 
-  
+  mirror:mirror,
   registry:registry,
 }

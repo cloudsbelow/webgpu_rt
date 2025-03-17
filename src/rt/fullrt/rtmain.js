@@ -72,24 +72,13 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let ndc=vec4f((spos.xy-vec2(0.5,0.5)+vec2(unitRand(),unitRand()))*2/vec2f(width, -height)-vec2f(1,-1),1,1);
   let dirvec=normalize((cam.aInv*ndc).xyz);
 
-  var out = vec4(getRadiance(cam.loc, dirvec, 1),1);
-
-  /*let hit:hitInfo=raytrace(cam.loc, dirvec, 0.01,maxSceneDist);
-  var atmo = atmosphereScatter(dirvec, cam.loc, hit.dist);
-  
-  var out=vec4f(atmo.inscat,1); //= vec4f(1/dist,0,0,1);
-  if(hit.didhit){
-    let lighting = getSunPower(hit.wpos)*max(0,dot(hit.normal,sun.dir));
-    if(raytrace(hit.wpos, sun.dir, 0.01, maxSceneDist).dist>=maxSceneDist){
-      out += vec4(lighting*atmo.transmittance,0);
-    }
-  }*/
+  var out = vec4(getRadiance(cam.loc, dirvec, 20),1);
 
   textureStore(randstatetx,pixelcoord,vec4u(randState, 0,0,0));
   let pixidx = pixelcoord.x+pixelcoord.y*width;
   let acc = accumulator[pixidx]+out;
   accumulator[pixidx]=acc;
-  return srgb(acc*sun.gain/acc.w);
+  return vec4(srgb(acc*sun.gain/acc.w).xyz+(unitRand()*0.01-0.005),select(1.,0.,dot(acc,vec4(1,1,1,1))>=0 || dot(acc,vec4(1,1,1,1))<0));
 }
 `
 }

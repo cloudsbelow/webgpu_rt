@@ -4,6 +4,7 @@ export function scenegeofns(group, vertexstride = 12){
 
 @group(${group}) @binding(0) var<storage> rt_vertices:array<f32>;
 @group(${group}) @binding(1) var<storage> rt_bvh:array<f32>;
+@group(${group}) @binding(2) var<storage> rt_materials:array<u32>;
 
 struct disthit{
   dist:f32,
@@ -80,6 +81,7 @@ fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
   var ret:hitInfo;
   ret.dist = h.dist;
   ret.wpos = h.dist*dir+pos;
+  ret.material = rt_materials[triidx.x];
   ret.didhit = true;
 
   if(iscircle){
@@ -88,7 +90,6 @@ fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
     let e1 = p2-p1;
     let e2 = p3-p1;
     ret.normal = normalize(cross(e2,e1));
-    ret.material = 0;
   }
   //ret.normal = vec3(f32(leafidx)+0.1,f32(subidx)/)
   return ret;

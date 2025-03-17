@@ -145,8 +145,15 @@ BVHNode.prototype.prepare = function(device, vertexbuf = null){
     })
     device.queue.writeBuffer(vertexbuf, 0, vbufcpu)
   }
-  const bgl = ver.bgl(device, "rt layout", [{r:'b',t:'r'},{r:'b',t:'r'}])
-  const bg = ver.bg(bgl, "rt bindgroup", [{buffer:vertexbuf},{buffer:gpuibuf}])
+  const mbuf = new Uint32Array(this.ctx.m.length);
+  this.ctx.m.forEach((m,i)=>mbuf[i]=m+0)
+  const gpumbuf = device.createBuffer({
+    label:"Material buffer", size:mbuf.byteLength,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+  })
+  device.queue.writeBuffer(gpumbuf, 0, mbuf);
+  const bgl = ver.bgl(device, "rt layout", [{r:'b',t:'r'},{r:'b',t:'r'},{r:'b',t:'r'}])
+  const bg = ver.bg(bgl, "rt bindgroup", [{buffer:vertexbuf},{buffer:gpuibuf},{buffer:gpumbuf}])
   objs.bbuf = bufcont;
   return {
     wgsl:rtshader,
@@ -163,6 +170,7 @@ export class BVHContext{
     this.h = []
     this.c = []
     this.x = []
+    this.m = []
     this.triset = new Set()
     /*this.v=v; 
     this.triidxs = triindices;
@@ -191,7 +199,7 @@ export class BVHContext{
   isTri(idx){
     return this.triset.has(idx);
   }
-  addTris(vbuf, ibuf, {
+  addTris(vbuf, ibuf, material=0, {
     posoffset=0, vstride=16,
     istride = 12, idtype = Uint32Array, vshift = [0,0,0]
   }={}){
@@ -200,9 +208,11 @@ export class BVHContext{
       let vs = new Float32Array(vshift)
       for(let i=0; i<vbuf.byteLength/vstride; i++){
         this.v.push(ch.v_lop(1,new Float32Array(vbuf, i*vstride+posoffset, 3),1,vs))
+        this.m.push(material);
       }
     } else for(let i=0; i<vbuf.length; i+=3){
       this.v.push(new Float32Array([vbuf[0+i]+vshift[0],vbuf[1+i]+vshift[1],vbuf[2+i]+vshift[2]]))
+      this.m.push(material);
     }
     
     if(ibuf instanceof ArrayBuffer) ibuf = new idtype(ibuf);
@@ -218,8 +228,19 @@ export class BVHContext{
     }
     this.n = this.x.length;
   }
-  addCircles(vbuf, ibuf){
-    
+  addCircle(loc, radius, material=0){
+    let center = this.v.length;
+    let span = center+1;
+    this.v.push(new Float32Array([loc[0],loc[1],loc[2]]))
+    this.v.push(new Float32Array([radius,radius, radius]))
+    this.m.push(material, material)
+
+    const v=this.v
+    this.x.push(new Uint32Array([center,span,0]));
+    this.c.push(ch.v_lop(1,v[center]))
+    this.l.push(ch.v_lop(1,v[center],-1,v[span]))
+    this.h.push(ch.v_lop(1,v[center],1,v[span]))
+    this.n = this.x.length;
   }
 }
 
