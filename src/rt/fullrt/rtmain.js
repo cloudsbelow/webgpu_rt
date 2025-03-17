@@ -14,7 +14,7 @@ return /*wgsl*/`
 const width = ${size[0]};
 const height = ${size[1]};
 const maxSceneDist:f32 = 10000000000.;
-const minSceneDist:f32 = 0.0001;
+const minSceneDist:f32 = 0.01;
 
 struct camStruct {
   pMatrix:mat4x4f,
@@ -38,7 +38,7 @@ fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
   var pos = spos;
   var dir = sdir;
   for(var i:u32=0; i<depth; i++){
-    let hit = raytrace(pos,dir,minSceneDist,maxSceneDist);
+    let hit = raytrace(pos,dir,minSceneDist*(1+4*length(pos)),maxSceneDist);
     let atmo = atmosphereScatter(dir, pos, hit.dist);
     light+=trans*atmo.inscat;
     trans*=atmo.transmittance;
@@ -47,7 +47,7 @@ fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
     }
     let directSun = getSunPower(hit.wpos)*evaluatePhong(hit.normal, dir, sun.dir, hit.material);
     if(directSun.r>0){
-      let shadowray = raytrace(hit.wpos, sun.dir, minSceneDist,maxSceneDist).dist;
+      let shadowray = raytrace(hit.wpos, sun.dir, minSceneDist*(1+length(pos)),maxSceneDist).dist;
       if(shadowray>=maxSceneDist){
         light+=trans*directSun;
       }
@@ -60,6 +60,13 @@ fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
     trans*=sample.through;
     dir=sample.dir;
     pos=hit.wpos;
+    let importance = dot(trans, vec3(0.5,0.7,0.4));
+    if(importance<0.4){
+      trans*=2;
+      if(unitRand()<0.5){
+        return light;
+      }
+    }
   }
   return light;
 }

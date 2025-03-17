@@ -42,7 +42,7 @@ fn raytri(pos:vec3f, dir:vec3f, triidx:vec3u, tmin:f32, tmax:f32, address:u32, i
   } else {
     let l = pos-p1;
     let ct = dot(dir, l);
-    let det = sqrt(ct*ct-dot(l,l)+1);
+    let det = sqrt(ct*ct-dot(l,l)+p2[0]*p2[0]);
     let nearhit = -ct-det;
     if(-ct-det<tmax && -ct-det>tmin){
       ret.dist = -ct-det;

@@ -51,6 +51,16 @@ export function v3_uniform(n1,n2){
   return new Float32Array([Math.random()*dif+min, Math.random()*dif+min, Math.random()*dif+min])
 }
 
+export function discretedist(arr=[1,1]){
+  let sum = arr.reduce((a,b)=>a+b);
+  let r=Math.random()*sum;
+  for(let i=0; i<arr.length-1; i++){
+    r-=arr[i];
+    if(r<0) return i;
+  }
+  return arr.length-1;
+}
+
 export function range(n){
   let c = new Uint32Array(n);
   for(let i=0; i<n; i++) c[i]=i;

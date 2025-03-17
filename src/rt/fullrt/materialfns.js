@@ -12,7 +12,9 @@ export class Material{
     reflectcolor = [0.9,0.9,0.9],
     reflectivity = 0,
     emission = [0,0,0],
-    ior = 0,
+    transmitcolor = [1,1,1],
+    transness = 0,
+    ior = 1,
   }={}){
     this.diffuseCol = new Float32Array([diffuse[0],diffuse[1],diffuse[2]]);
     this.diffuseStr = diffusestr;
@@ -21,9 +23,12 @@ export class Material{
     this.reflectCol = new Float32Array([reflectcolor[0],reflectcolor[1],reflectcolor[2]]);
     this.reflectStr = reflectivity
     this.emitCol = new Float32Array([emission[0],emission[1],emission[2]]);
+    this.transness = transness
+    this.transCol = new Float32Array([transmitcolor[0],transmitcolor[1],transmitcolor[2]]);
+    this.ior = ior
   }
-  static stride = 64;
-  static GPUStride = 64/16;
+  static GPUStride = 5;
+  static stride = 5*16;
   static diffuseGO = 0
   static diffuseColOffset = 0
   static diffuseStrOffset = 3
@@ -38,9 +43,14 @@ export class Material{
   
   static emitGO = 3
   static emitColOffset = 12
+  static transnessOffset = 15
+
+  static transGO = 4
+  static transColOffset = 16
+  static iorOffset = 19
   
-  static vecparams = ["diffuseCol","specularCol","reflectCol","emitCol"]
-  static singleparams = ["diffuseStr","specularStr","reflectStr"]
+  static vecparams = ["diffuseCol","specularCol","reflectCol","emitCol", "transCol"]
+  static singleparams = ["diffuseStr","specularStr","reflectStr","transness","ior"]
   /**
    * 
    * @param {DataView} v 
@@ -68,7 +78,7 @@ export class MaterialRegistry{
       let idx = this.materials.length;
       this.materials.push(mat)
       mat.idx = idx;
-      return idx;
+      return mat;
     }
     return 0
   }
@@ -91,7 +101,7 @@ export class MaterialRegistry{
     device.queue.writeBuffer(gpubuf, 0, cpubuf);
     return gpubuf;
   }
-  static MAXSLOTS = 4
+  static MAXSLOTS = 16
 }
 
 export function scenematfns(group, binding){
@@ -111,22 +121,55 @@ export function scenematfns(group, binding){
   fn sampleBRDF(normal:vec3f, dir:vec3f, id:u32)->bsdfsample{
     var r=unitRand();
     var b:bsdfsample;
-    b.emit = materialVec(id, ${Material.emitGO}).xyz;
+    let emitInfo = materialVec(id, ${Material.emitGO});
+    let reflectDir = normalize(dir-2*dot(dir,normal)*normal);
+    b.emit = emitInfo.xyz;
     b.terminate = false;
+    
+    r-=emitInfo.w;
+    if(r<0){
+      let transInfo = materialVec(id, ${Material.transGO});
+      let term1 = ((1-transInfo.w)/(1+transInfo.w));
+      let rsch = term1*term1;
+      let ct = clamp(dot(-dir,normal),-1,1);
+      let fresreflect = rsch+(1-rsch)*pow(1-abs(ct),5);
+      let nrat = select(transInfo.w, 1/transInfo.w, ct>0);
+      let sq_trm = 1-nrat*nrat*(1-ct*ct);
+      // if(ct<0){
+      //   b.terminate = true;
+      //   b.emit=vec3f(sq_trm,-sq_trm,0);
+      // }
+      if(sq_trm<=0 || unitRand()<fresreflect){
+        b.through = transInfo.rgb;
+        b.dir = reflectDir;
+        //b.terminate=true;
+        return b;
+      } else {
+        b.through = transInfo.rgb;
+        b.dir = normalize(dir*nrat+normal*(nrat*abs(ct)-sqrt(sq_trm)));
+        /*if(dot(b.dir,normal)>0){
+          b.terminate = true;
+          b.emit=vec3f(0,0,1);
+        }*/
+        return b;
+      }
+    }
 
     let reflectInfo = materialVec(id, ${Material.reflectGO});
     r-=reflectInfo.w;
-    let reflectDir = normalize(dir-2*dot(dir,normal)*normal);
     if(r<0){
       b.through = reflectInfo.xyz;
       b.dir = reflectDir;
       return b;
     }
+
+
     let diffuseInfo = materialVec(id, ${Material.diffuseGO});
     r-=diffuseInfo.w;
     if(r<0){
       let outdir = hemisphereRand(normal);
       //diffuse
+      //we are being very silly and sampling with the same probability as our thing so it works fine
       var color = max(0,dot(normal, outdir))*diffuseInfo.rgb;
       //specular
       let specularInfo = materialVec(id, ${Material.specularGO});
@@ -158,5 +201,11 @@ const mirror = new Material({
 export const materials = window.materials = {
   basic:basic, 
   mirror:mirror,
+  glass: registry.register(new Material({
+    diffuse:0, transness:1, transmitcolor:[1,1,1],ior:1.3
+  })),
+  glow: registry.register(new Material({
+    emission:[1,1,1]
+  })),
   registry:registry,
 }

@@ -9,7 +9,7 @@ import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 import { materials } from "./rt/fullrt/materialfns.js";
-import { v3_uniform } from "./util/menial/convenience.js";
+import { discretedist, v3_uniform } from "./util/menial/convenience.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -40,8 +40,9 @@ ver.startWebGPU((device)=>{
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
     for(let i=0; i<40; i++){
-      bvhctx.addCircle(v3_uniform(-10,10),1,materials.mirror);
+      bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,1,0]));
     }
+    bvhctx.addCircle([10000,0,10000],7000,materials.glow);
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
     // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
