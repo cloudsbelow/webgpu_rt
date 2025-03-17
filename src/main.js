@@ -8,6 +8,7 @@ import * as bvhlib from "./rt/splitter.js";
 import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
+import { materials } from "./rt/fullrt/materialfns.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -24,8 +25,11 @@ ver.startWebGPU((device)=>{
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
-  const ubgl = ver.bgl(device, "unifom buffers",[{r:"b"}])
-  const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif}])
+
+  const matbuf = materials.registry.upload(device)
+
+  const ubgl = ver.bgl(device, "unifom buffers",[{r:"b"}, {r:"b"}])
+  const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif},{buffer:matbuf}])
 
   const atmoparams = skyFn(device);
   window.sun = atmoparams.params;
@@ -34,34 +38,24 @@ ver.startWebGPU((device)=>{
     console.log("here");
     const size = [512, 512]
 
-    // const bvh = window.bvh = bvhlib.parsebvh(
-    //   vbuffile.content, ibuffile.content,[]
-    // ).makeRoot({method: bvhlib.sahsplit})//.t[1].t[1].t[0].t[0].t[1]//.t[1]//.t[0]//.t[1]
-    // const bvh = window.bvh = bvhlib.parsebvh(
-    //   [0,0,0, 1,1,1, 0,1,0, 2,3,2], new Uint32Array([0,1,2]), [[0,1,1],[3,1,1]]
-    // ).makeRoot({method: bvhlib.sahsplit})
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
-    const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
-      ubg, normmap.simplebg()
-    ], vbuffile.content, bvh.mIndex().buffer)
-    //const db_n = debugTex(device, [256,256], gbs.normal)
-    //const db_d = debugTex(device, [256,256], gbs.depth, {ttype:"texture_depth_2d",disp:"vec4(info,info*4,info*16,0)",etype:{r:"t",t:"d"}})
+    // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
+    //   ubg, normmap.simplebg()
+    // ], vbuffile.content, bvh.mIndex().buffer)
 
     const bvhst = bvh.prepare(device)
-    const deferedpass = lpass.genpass(device, bvhst, gbs, ubg)
+    //const deferedpass = lpass.genpass(device, bvhst, gbs, ubg)
     const rtpass = genrtpass(device, size, ubg, bvhst, atmoparams)
-    const db_p = debugTex(device, size, deferedpass.tx)
+    //const db_p = debugTex(device, size, deferedpass.tx)
     const rt_p = debugTex(device, size, rtpass.tx)
 
     const frame = ()=>{
       cam.update();
       device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
-      ver.enc(device, gbs.draw, deferedpass.fn, rtpass.fn)
-      //db_n(); db_d(); 
-      db_p();
+      ver.enc(device, rtpass.fn)
       rt_p();
       if(!objs.stop) requestAnimationFrame(frame)
     }

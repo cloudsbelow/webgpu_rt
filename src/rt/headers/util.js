@@ -13,6 +13,16 @@ fn unitRand() -> f32 {
   randState = x;
   return f32(randState) / 4294967296.0;
 }
+
+fn hemisphereRand(center:vec3f)->vec3f{
+  let theta = 2*PI*unitRand();
+  let v = 2*unitRand()-1;
+  let phi = acos(v);
+  let sp = sin(phi);
+  let d = vec3(sin(theta)*sp,v,cos(theta)*sp);
+  return d*select(1.,-1.,dot(center,d)<0);
+}
+
 `
 
 

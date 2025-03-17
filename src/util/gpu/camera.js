@@ -80,6 +80,23 @@ function m4_invpersl({
   return (t? m4_t:(x)=>x)(m4_mul(rotM, perM));
 }
 
+
+class simpleBuffer{
+  constructor(){
+    this.buffered = false
+  }
+  consume(){
+    if(this.buffered){
+      this.buffered = false;
+      return true;
+    }
+  }
+  buffer(){
+    this.buffered=true;
+  }
+}
+export const globalResetBuffer = new simpleBuffer()
+
 export class Camera{
   constructor(loc, vdir, {fov=0.8, ar=1, np=0.1, t=true, keybinds = {
     forward:'KeyW', left:'KeyA', right:'KeyD', back:'KeyS', up:'Space', down:'ShiftLeft',
@@ -94,6 +111,7 @@ export class Camera{
   }
 }
 
+
 Camera.prototype.update = function(){
   let dt=Math.min(100, Date.now()-this.lu);
   this.lu=Date.now();
@@ -102,25 +120,30 @@ Camera.prototype.update = function(){
 
   if(true){
     let dir=(keys[this.binds.lookLeft]?1:0)-(keys[this.binds.lookRight]?1:0);
+    if(dir)globalResetBuffer.buffer()
     this.params.vdir[0]+=-dir*dt*0.005*as;
   }
   if(true){
     let dir=(keys[this.binds.lookUp]?1:0)-(keys[this.binds.lookDown]?1:0);
+    if(dir)globalResetBuffer.buffer()
     this.params.vdir[1]+=dir*dt*0.005*as;
   }
   
   if(true){
     let dir=(keys[this.binds.forward]?1:0)-(keys[this.binds.back]?1:0);
+    if(dir)globalResetBuffer.buffer()
     this.params.loc[2]+=dir*Math.cos(this.params.vdir[0])*dt*0.005*ms;
     this.params.loc[0]+=dir*Math.sin(this.params.vdir[0])*dt*0.005*ms;
   }
   if(true){
     let dir=(keys[this.binds.left]?1:0)-(keys[this.binds.right]?1:0);
+    if(dir)globalResetBuffer.buffer()
     this.params.loc[0]+=-dir*Math.cos(this.params.vdir[0])*dt*0.005*ms;
     this.params.loc[2]+=dir*Math.sin(this.params.vdir[0])*dt*0.005*ms;
   }
   if(true){
     let dir=(keys[this.binds.up]?1:0)-(keys[this.binds.down]?1:0);
+    if(dir)globalResetBuffer.buffer()
     this.params.loc[1]+=dir*dt*0.005*ms;
   }
 }
@@ -138,3 +161,4 @@ Camera.prototype.matrices = function(){
 Camera.prototype.verify = function(){
   return m4_mul(m4_pers(this.params), m4_invpersl(this.params))
 }
+

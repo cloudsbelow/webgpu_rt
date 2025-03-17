@@ -1,7 +1,9 @@
 import { sceneatmofns } from "../../modules/atmosphere.js";
+import { globalResetBuffer } from "../../util/gpu/camera.js";
 import * as ver from "../../util/gpu/verbose.js";
 import { keys } from "../../util/util.js";
 import { cgFuncs, randomFuncs } from "../headers/util.js";
+import { scenematfns } from "./materialfns.js";
 import { scenegeofns } from "./scenetrace.js";
 
 
@@ -12,6 +14,7 @@ return /*wgsl*/`
 const width = ${size[0]};
 const height = ${size[1]};
 const maxSceneDist:f32 = 10000000000.;
+const minSceneDist:f32 = 0.0001;
 
 struct camStruct {
   pMatrix:mat4x4f,
@@ -27,7 +30,39 @@ ${randomFuncs}
 ${cgFuncs}
 ${scenegeofns(2)}
 ${sceneatmofns(3)}
+${scenematfns(1,1)}
 
+fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
+  var light = vec3f(0,0,0);
+  var trans = vec3f(1,1,1);
+  var pos = spos;
+  var dir = sdir;
+  for(var i:u32=0; i<depth; i++){
+    let hit = raytrace(pos,dir,minSceneDist,maxSceneDist);
+    let atmo = atmosphereScatter(dir, pos, hit.dist);
+    light+=trans*atmo.inscat;
+    trans*=atmo.transmittance;
+    if(!hit.didhit){
+      return light;
+    }
+    let directSun = getSunPower(hit.wpos)*evaluatePhong(hit.normal, dir, sun.dir, hit.material);
+    if(directSun.r>0){
+      let shadowray = raytrace(hit.wpos, sun.dir, minSceneDist,maxSceneDist).dist;
+      if(shadowray>=maxSceneDist){
+        light+=trans*directSun;
+      }
+    }
+    let sample = sampleBRDF(hit.normal, dir, hit.material);
+    light+=trans*sample.emit;
+    if(sample.terminate){
+      return light;
+    }
+    trans*=sample.through;
+    dir=sample.dir;
+    pos=hit.wpos;
+  }
+  return light;
+}
 
 ${ver.screenVertexQuad}
 @fragment
@@ -37,7 +72,9 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let ndc=vec4f((spos.xy-vec2(0.5,0.5)+vec2(unitRand(),unitRand()))*2/vec2f(width, -height)-vec2f(1,-1),1,1);
   let dirvec=normalize((cam.aInv*ndc).xyz);
 
-  let hit:hitInfo=raytrace(cam.loc, dirvec, 0.01,maxSceneDist);
+  var out = vec4(getRadiance(cam.loc, dirvec, 1),1);
+
+  /*let hit:hitInfo=raytrace(cam.loc, dirvec, 0.01,maxSceneDist);
   var atmo = atmosphereScatter(dirvec, cam.loc, hit.dist);
   
   var out=vec4f(atmo.inscat,1); //= vec4f(1/dist,0,0,1);
@@ -46,9 +83,6 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
     if(raytrace(hit.wpos, sun.dir, 0.01, maxSceneDist).dist>=maxSceneDist){
       out += vec4(lighting*atmo.transmittance,0);
     }
-  }
-  /*if(dist>=10000){
-    out = vec4f(atmosphereScatter(dirvec, cam.loc, 100000000, vec3(0,0,0)),1);
   }*/
 
   textureStore(randstatetx,pixelcoord,vec4u(randState, 0,0,0));
@@ -101,7 +135,7 @@ export function genrtpass(device,size,cambg,rtdat,atmodat){
   return {
     fn: (encoder)=>{
       rpfn(encoder, null, 6, null, [outtx], [statebg,cambg, rtdat.bg, atmodat.bg])
-      if(keys.KeyR) resetfn(encoder,size[0]*size[1]/32,1,1);
+      if(keys.KeyR || globalResetBuffer.consume()) resetfn(encoder,size[0]*size[1]/32,1,1);
     },
     tx: outtx
   }

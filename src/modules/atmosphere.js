@@ -1,3 +1,4 @@
+import { globalResetBuffer } from "../util/gpu/camera.js";
 import { debugTex } from "../util/gpu/debugtex.js";
 import * as ver from "../util/gpu/verbose.js"
 
@@ -53,17 +54,20 @@ export class AtmosphereConsts{
     this.cpubuf[2]=Math.sin(theta)*Math.cos(phi);
     this.cpubuf[3]=alt;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
+    globalResetBuffer.buffer()
   }
   setSunColor(r,g,b){
     this.cpubuf[4]=r;
     this.cpubuf[5]=g;
     this.cpubuf[6]=b;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
+    globalResetBuffer.buffer()
   }
   setGain(g){
     this.gain = (g=g??this.gain);
     this.cpubuf[7]=g
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
+    globalResetBuffer.buffer()
   }
 }
 

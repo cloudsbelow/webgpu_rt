@@ -62,6 +62,7 @@ struct hitInfo{
   dist:f32,
   normal: vec3f,
   wpos: vec3f,
+  material: u32,
   didhit:bool,
 }
 fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
@@ -87,6 +88,7 @@ fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
     let e1 = p2-p1;
     let e2 = p3-p1;
     ret.normal = normalize(cross(e2,e1));
+    ret.material = 0;
   }
   //ret.normal = vec3(f32(leafidx)+0.1,f32(subidx)/)
   return ret;
