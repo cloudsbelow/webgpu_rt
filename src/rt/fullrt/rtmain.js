@@ -21,6 +21,8 @@ struct camStruct {
   aInv:mat4x4f,
   loc:vec3f,
   np:f32,
+  samplesPerPixel:u32,
+  resivouirM:u32,
 }
 @group(1) @binding(0) var<uniform> cam: camStruct;
 @group(0) @binding(0) var randstatetx:texture_storage_2d<r32uint,read_write>;
@@ -93,7 +95,7 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let dirvec=normalize((cam.aInv*ndc).xyz);
 
   var out = vec4f(0,0,0,0);
-  for(var i=0; i<10; i++){
+  for(var i=0u; i<cam.samplesPerPixel; i++){
     out+=vec4(getRadiance(cam.loc, dirvec, 20),1);
   }
 

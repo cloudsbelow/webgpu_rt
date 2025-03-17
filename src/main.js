@@ -23,7 +23,7 @@ ver.startWebGPU((device)=>{
   const cam = objs.cam = new Camera([0,2,0],[0,0],{np:0.1, fov:0.8, ar:size[1]/size[0]});
   const camUnif = device.createBuffer({
     label: "Camera Uniform",
-    size: 16*4*2+16,
+    size: 16*4*2+16+16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
@@ -40,10 +40,10 @@ ver.startWebGPU((device)=>{
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
     for(let i=0; i<40; i++){
-      bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,0,0,3]));
+      //bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,0,0,3]));
     }
-    bvhctx.addCircle([10000,0,10000],7000,materials.glow);
-    bvhctx.addTris(vbuffile.content,ibuffile.content,materials.glowglass,{vshift: [10,0,20]})
+    bvhctx.addCircle([0,5,0],1,materials.glow);
+    //bvhctx.addTris(vbuffile.content,ibuffile.content,materials.glowglass,{vshift: [10,0,20]})
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
 
     // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
@@ -79,5 +79,5 @@ console.log(ver)
 
 
 function onDoneLoad(){
-  //sun.setSunPos(0,-1)
+  sun.setSunPos(0,-1)
 }

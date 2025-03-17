@@ -177,19 +177,41 @@ export function scenematfns(group, binding){
     if(r<0){
       var outdir:vec3f;
       var pdf:f32;
+      var brdf:vec3f;
+      let specularInfo = materialVec(id, ${Material.specularGO});
       if(unitRand()<sun.sundiskshare){
         outdir = coneRandDir(sun.suntheta, sun.sunphi, sun.sundisk);
         pdf = sun.sundiskshare/(1-cos(sun.sundisk));
       } else {
-        outdir = hemisphereRand(normal);
-        pdf = (1-sun.sundiskshare)/(2*PI);
+        //outdir = hemisphereRand(normal);
+        //pdf = (1-sun.sundiskshare)/(2*PI);
+        var w:f32=0;
+        var cphat:f32;
+        let resamples = cam.resivouirM;
+        const importanceVec = vec3f(0.4,0.6,0.3);
+        let diffImp = dot(importanceVec, diffuseInfo.rgb);
+        let specImp = dot(importanceVec, specularInfo.rgb);
+        for(var i=0u; i<resamples; i++){
+          let ndir = hemisphereRand(normal);
+          const np = 1/(2*PI);
+          let nphat = max(0,dot(normal, ndir))*diffImp+
+                      pow(max(0,dot(reflectDir, ndir)),specularInfo.w)*
+                      (specularInfo.w+2)*specImp;
+          let nw = nphat/np;
+          w+=nw;
+          if(unitRand()<=nw/w){
+            outdir = ndir;
+            cphat = nphat;
+          }
+        }
+        pdf = cphat*(f32(resamples)/w)*(1-sun.sundiskshare);
       }
-
       //diffuse
-      var brdf = max(0,dot(normal, outdir))*diffuseInfo.rgb/(2*PI);
+      brdf = max(0,dot(normal, outdir))*diffuseInfo.rgb/(2*PI);
       //specular
-      let specularInfo = materialVec(id, ${Material.specularGO});
-      brdf += pow(max(0,dot(reflectDir, outdir)),specularInfo.w)*specularInfo.rgb;
+      brdf += pow(max(0,dot(reflectDir, outdir)),specularInfo.w)* //spike
+              ((specularInfo.w+2)/(2*PI))*                        //normalization
+              specularInfo.rgb;
 
       b.dir = outdir;
       b.through = max(brdf/pdf,vec3f(0,0,0));
@@ -225,7 +247,7 @@ export const materials = window.materials = {
     diffuseStr:0, transness:1, transmitCol:[1,1,1],ior:1.3
   })),
   glow: registry.register(new Material({
-    emissionCol:[1,1,1]
+    emissionCol:[1,0.8,0.3]
   })),
   glowglass: registry.register(new Material({
     diffuseStr:0, transness:1, transmitCol:[1,1,1],ior:1.3,emissionCol:[1,0,0]

@@ -104,7 +104,8 @@ export class Camera{
   }}={}){
     this.params = {
       loc:loc, vdir:vdir,
-      fov:fov, ar:ar, np:np, t:t
+      fov:fov, ar:ar, np:np, t:t,
+      samples: 10, resamples:16,
     }
     this.lu = Date.now()
     this.binds = keybinds
@@ -152,7 +153,8 @@ Camera.prototype.genbuffers = function(){
     m4_pers(this.params),
     m4_invpersl(this.params), 
     new Float32Array(this.params.loc),
-    new Float32Array([this.params.np])
+    new Float32Array([this.params.np]),
+    new Uint32Array([this.params.samples,this.params.resamples])
   )
 }
 Camera.prototype.matrices = function(){
