@@ -1,3 +1,4 @@
+import { makeslider } from "../uigarbage.js";
 import {b_cc, keys} from "./../util.js";
 
 function m4_ident(){
@@ -98,14 +99,14 @@ class simpleBuffer{
 export const globalResetBuffer = new simpleBuffer()
 
 export class Camera{
-  constructor(loc, vdir, {fov=0.8, ar=1, np=0.1, t=true, keybinds = {
+  constructor(loc, vdir, {fov=0.8, ar=1, np=0.1, t=true, gain=1, keybinds = {
     forward:'KeyW', left:'KeyA', right:'KeyD', back:'KeyS', up:'Space', down:'ShiftLeft',
     lookUp:'KeyO',lookDown:'KeyL',lookLeft:'KeyK',lookRight:'Semicolon',
   }}={}){
     this.params = {
       loc:loc, vdir:vdir,
       fov:fov, ar:ar, np:np, t:t,
-      samples: 10, resamples:16,
+      samples: 10, resamples:16, gain:gain
     }
     this.lu = Date.now()
     this.binds = keybinds
@@ -154,7 +155,8 @@ Camera.prototype.genbuffers = function(){
     m4_invpersl(this.params), 
     new Float32Array(this.params.loc),
     new Float32Array([this.params.np]),
-    new Uint32Array([this.params.samples,this.params.resamples])
+    new Uint32Array([this.params.samples,this.params.resamples]),
+    new Float32Array([this.params.gain])
   )
 }
 Camera.prototype.matrices = function(){
@@ -164,3 +166,8 @@ Camera.prototype.verify = function(){
   return m4_mul(m4_pers(this.params), m4_invpersl(this.params))
 }
 
+Camera.prototype.addControls = function(parent){
+  parent.appendChild(makeslider("gain     ",(value)=>this.params.gain = value,0,10,1,0.1))
+  parent.appendChild(makeslider("samples ",(value)=>this.params.samples = value,1,32,10,1))
+  parent.appendChild(makeslider("resamples",(value)=>this.params.samples = value,1,32,16,1))
+}

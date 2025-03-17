@@ -9,7 +9,7 @@ import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 import { materials } from "./rt/fullrt/materialfns.js";
-import { discretedist, v3_uniform } from "./util/menial/convenience.js";
+import { discretedist, v3_uniform, v_lop } from "./util/menial/convenience.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -27,6 +27,7 @@ ver.startWebGPU((device)=>{
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(camUnif, 0, cam.genbuffers());
+  cam.addControls(document.getElementById("cameraui"))
 
   const matbuf = materials.registry.upload(device)
 
@@ -34,13 +35,14 @@ ver.startWebGPU((device)=>{
   const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif},{buffer:matbuf}])
 
   const atmoparams = skyFn(device);
+  atmoparams.params.addControls(document.getElementById("sunui"));
   window.sun = atmoparams.params;
   
   const cb = new util.Allcb(()=>{
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     bvhctx.addTris(vbuffile.content, ibuffile.content)
     for(let i=0; i<40; i++){
-      //bvhctx.addCircle(v3_uniform(-10,10),1+Math.random(),discretedist([0,1,0,0,3]));
+      bvhctx.addCircle(v_lop(1,v3_uniform(-10,10),1,[0,5,0]),1+Math.random(),discretedist([0,1,0,0,3]));
     }
     bvhctx.addCircle([0,5,0],1,materials.glow);
     //bvhctx.addTris(vbuffile.content,ibuffile.content,materials.glowglass,{vshift: [10,0,20]})
@@ -79,5 +81,4 @@ console.log(ver)
 
 
 function onDoneLoad(){
-  sun.setSunPos(0,-1)
 }

@@ -23,6 +23,7 @@ struct camStruct {
   np:f32,
   samplesPerPixel:u32,
   resivouirM:u32,
+  gain:f32,
 }
 @group(1) @binding(0) var<uniform> cam: camStruct;
 @group(0) @binding(0) var randstatetx:texture_storage_2d<r32uint,read_write>;
@@ -103,7 +104,7 @@ fn fragmentMain(@builtin(position) spos:vec4f)->@location(0) vec4f{
   let pixidx = pixelcoord.x+pixelcoord.y*width;
   let acc = accumulator[pixidx]+out;
   accumulator[pixidx]=acc;
-  return vec4(srgb(acc*sun.gain/acc.w).xyz+(unitRand()*0.01-0.005),select(1.,0.,dot(acc,vec4(1,1,1,1))>=0 || dot(acc,vec4(1,1,1,1))<0));
+  return vec4(srgb(acc*cam.gain/acc.w).xyz+(unitRand()*0.01-0.005),select(1.,0.,dot(acc,vec4(1,1,1,1))>=0 || dot(acc,vec4(1,1,1,1))<0));
 }
 `
 }

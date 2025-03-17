@@ -1,6 +1,7 @@
 import { globalResetBuffer } from "../util/gpu/camera.js";
 import { debugTex } from "../util/gpu/debugtex.js";
 import * as ver from "../util/gpu/verbose.js"
+import { makeslider } from "../util/uigarbage.js";
 
 const skyParams = /*wgsl*/`
 const PI=3.14159265;
@@ -54,10 +55,12 @@ export class AtmosphereConsts{
     this.alt = (alt = alt??this.alt)
     this.cpubuf[0]=Math.cos(theta)*Math.cos(phi);
     this.cpubuf[1]=Math.sin(phi);
-    this.cpubuf[2]=Math.sin(theta)*Math.cos(phi);
+    this.cpubuf[2]=-Math.sin(theta)*Math.cos(phi);
     this.cpubuf[3]=alt;
     this.cpubuf[8]=theta;
     this.cpubuf[9]=phi;
+    if(Math.sin(phi)<-this.sundiskangle-0.03) this.cpubuf[11]=0;
+    else this.cpubuf[11]=this.sundiskimportance;
     this.device.queue.writeBuffer(this.gpubuf, 0, this.cpubuf);
     globalResetBuffer.buffer()
   }
@@ -335,4 +338,13 @@ export function skyFn(device){
     transtx:transTex,
     mscattx:mscatTex,
   }
+}
+
+AtmosphereConsts.prototype.addControls = function(parent){
+  [
+    makeslider("altitude",(value)=>this.setSunPos(value),10,90000,100,1),
+    makeslider("sunazimuth",(value)=>this.setSunPos(undefined,undefined,value),-2*Math.PI,2*Math.PI,0,0.01),
+    makeslider("sunaltitude",(value)=>this.setSunPos(undefined, value), -Math.PI/2, Math.PI/2, 1, 0.01),
+    makeslider("sundisk",(value)=>this.setSundisk(undefined, value),0.001,0.2,0.07,0.001),
+  ].forEach(parent.appendChild.bind(parent))
 }
