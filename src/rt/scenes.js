@@ -20,7 +20,9 @@ const warmGlass = registry.register(new Material({
 const darkmirror = registry.register(new Material({
   reflectStr:1, reflectCol:[0.5,0.5,0.5]
 }))
-
+const foggyglass = registry.register(new Material({
+  reflectStr:1, transness:1, transmitCol:[1,1,1],ior:1.3,absorbCol:[0.02,0.02,0.02],roughness:0.03
+}))
 
 
 if(registry.device) registry.upload();
@@ -37,8 +39,12 @@ export const Dragons = async function(bvhctx){
   bvhctx.addMesh(dragon, materials.glowglass, affineTransform({xrot:-Math.PI/2,yrot:3,offset:[4,0,6]}))
   
   bvhctx.addMesh(pillars, 0, affineTransform({scale:3,offset:[0,-3,0]}));
+  bvhctx.addMesh(pillars, foggyglass, affineTransform({scale:3,offset:[-50,-3,0]}));
 
-  bvhctx.addCircle([0,-302,0],300,darkmirror);
+  bvhctx.addCircle([0,-302,0],300,materials.diffuse);
+  bvhctx.addCircle([-50,-302,0],300,materials.diffuse);
+
+  bvhctx.addCircle([-1000,0,-1000],400,materials.glow)
 
   for(let i=0; i<60; i++){
     const theta = Math.random()*2*Math.PI;
@@ -61,11 +67,18 @@ export const Dragons = async function(bvhctx){
     const rad = Math.random()+1
     bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[warmGlass]))
   }
-  // for(let i=0; i<70; i++){
-  //   const theta = Math.random()*2*Math.PI;
-  //   const r = Math.sqrt(Math.random())*70
-  //   const h = Math.random()*30+20
-  //   const rad = Math.random()*2+2
-  //   bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[materials.glass]))
-  // }
+  for(let i=0; i<70; i++){
+    const theta = Math.random()*2*Math.PI;
+    const r = Math.sqrt(Math.random())*70
+    const h = Math.random()*40-1
+    const rad = Math.random()*2+2
+    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[materials.glass]))
+  }
+  for(let i=0; i<30; i++){
+    const theta = Math.random()*2*Math.PI;
+    const r = Math.sqrt(Math.random())*70
+    const h = Math.random()*40-1
+    const rad = Math.random()*2+2
+    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[materials.mirror]))
+  }
 }
