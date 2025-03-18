@@ -12,10 +12,11 @@ export class Material{
     reflectCol = [0.9,0.9,0.9],
     reflectStr = 0,
     emissionCol = [0,0,0], 
-    absorbCol = [0.2,0.2,0.2],
+    absorbCol = [0.0,0.0,0.0],
     transmitCol = [1,1,1],
     transness = 0,
     ior = 1,
+    roughness = 0,
   }={}){
     this.diffuseCol = new Float32Array([diffuseCol[0],diffuseCol[1],diffuseCol[2]]);
     this.diffuseStr = diffuseStr;
@@ -27,7 +28,8 @@ export class Material{
     this.transness = transness
     this.transCol = new Float32Array([transmitCol[0],transmitCol[1],transmitCol[2]]);
     this.ior = ior
-    this.absorbCol = new Float32Array([absorbCol[0],absorbCol[1],absorbCol[2]])
+    this.absorbCol = new Float32Array([absorbCol[0],absorbCol[1],absorbCol[2]]);
+    this.roughness = roughness;
   }
   static GPUStride = 6;
   static stride = 6*16;
@@ -53,9 +55,10 @@ export class Material{
 
   static absorbGO = 5
   static absorbColOffset = 20
+  static roughnessOffset = 23
   
   static vecparams = ["diffuseCol","specularCol","reflectCol","emitCol", "transCol","absorbCol"]
-  static singleparams = ["diffuseStr","specularHardness","reflectStr","transness","ior"]
+  static singleparams = ["diffuseStr","specularHardness","reflectStr","transness","ior","roughness"]
   /**
    * 
    * @param {DataView} v 
@@ -93,6 +96,12 @@ export class MaterialRegistry{
     this.materials.forEach((m,i)=>m.toView(v,i*Material.stride))
     globalResetBuffer.buffer();
 
+    for(let n of cpubuf){
+      if(isNaN(n)){
+        console.warn("NaN values in materials. this is bad.")
+        break;
+      }
+    }
     if((device == undefined || this.device == device) && this.gpubuf){
       this.device.queue.writeBuffer(this.gpubuf, 0, cpubuf)
       return this.gpubuf
@@ -106,7 +115,10 @@ export class MaterialRegistry{
     device.queue.writeBuffer(gpubuf, 0, cpubuf);
     return gpubuf;
   }
-  static MAXSLOTS = 16
+  getCurrentSlot(index){
+    return new Float32Array(this.cpu.buffer,Material.stride*index,Material.GPUStride*4)
+  }
+  static MAXSLOTS = 64
 }
 
 export function scenematfns(group, binding){
@@ -156,9 +168,12 @@ export function scenematfns(group, binding){
         return b;
       } else {
         b.through = transInfo.rgb;
-        b.dir = normalize(dir*nrat+normal*(nrat*abs(ct)-sqrt(sq_trm)));
+        let absorbInfo = materialVec(id, ${Material.absorbGO});
+        let refract = normalize(dir*nrat+normal*(nrat*abs(ct)-sqrt(sq_trm)));
+        let rdir = coneRandDir(-atan2(refract.z,refract.x),asin(refract.y),absorbInfo.w);
+        b.dir=normalize(select(rdir, rdir-2*dot(refract,rdir)*refract, dot(refract,normal)*dot(rdir,normal)<0));
         b.transmitsign = select(-1,1,ct>0);
-        b.absorb = vec3f(0,0,0);
+        b.absorb = absorbInfo.xyz;
         return b;
       }
     }
@@ -250,7 +265,10 @@ export const materials = window.materials = {
     emissionCol:[1,0.8,0.3]
   })),
   glowglass: registry.register(new Material({
-    diffuseStr:0, transness:1, transmitCol:[1,1,1],ior:1.3,emissionCol:[1,0,0]
+    diffuseStr:0, transness:1, transmitCol:[1,1,1],ior:1.3,emissionCol:[0.05,0.04,0.03],absorbCol:[0.02,0.02,0.02],roughness:0.03
+  })),
+  diffuse: registry.register(new Material({
+    specularCol:[0,0,0]
   })),
   registry:registry,
 }

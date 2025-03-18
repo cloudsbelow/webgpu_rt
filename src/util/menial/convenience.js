@@ -60,9 +60,53 @@ export function discretedist(arr=[1,1]){
   }
   return arr.length-1;
 }
+export function discretechoice(probs, options){
+  return options[discretedist(probs)]
+}
 
 export function range(n){
   let c = new Uint32Array(n);
   for(let i=0; i<n; i++) c[i]=i;
   return c
 }
+
+
+function m3_mul(a,b){
+  let c=new Float32Array(9);
+  for(let i=0; i<3; i++){
+    for(let j=0; j<3; j++){
+      let s=0;
+      for(let k=0; k<3; k++){
+        s+=a[i*3+k]*b[j+k*3]
+      }
+      c[i*3+j]=s;
+    }
+  }
+  return c;
+}
+
+export function affineTransform({
+  xrot=0, yrot=0, zrot=0, rot=[0,0,0],
+  xscale=1, yscale=1, zscale=1, scale=[1,1,1],
+  xmove=0, ymove=0, zmove=0, offset=[0,0,0] 
+}){
+  if(typeof scale == 'number') scale = [scale,scale,scale]
+  xrot+=rot[0]; yrot+=rot[1]; zrot+=rot[2]
+  const xrotm = new Float32Array([1,0,0,  0,Math.cos(xrot),-Math.sin(xrot),  0,Math.sin(xrot),Math.cos(xrot)]);
+  const yrotm = new Float32Array([Math.cos(yrot),0,Math.sin(yrot),  0,1,0,  -Math.sin(yrot),0,Math.cos(yrot)]);
+  const zrotm = new Float32Array([Math.cos(zrot),-Math.sin(zrot),0,  Math.sin(zrot),Math.cos(zrot),0,  0,0,1]);
+  const scalem = new Float32Array([scale[0]*xscale,0,0,  0,scale[1]*yscale,0,  0,0,scale[2]*zscale]);
+  const mat =  m3_mul(yrotm, m3_mul(zrotm, m3_mul(xrotm, scalem)));
+  return eval(`(()=>{
+    return function(x,y,z){
+      return [
+        ${mat[0]!=0?mat[0]+"*x+":""}${mat[1]!=0?mat[1]+"*y+":""}${mat[2]!=0?mat[2]+"*z+":""}${xmove+offset[0]},
+        ${mat[3]!=0?mat[3]+"*x+":""}${mat[4]!=0?mat[4]+"*y+":""}${mat[5]!=0?mat[5]+"*z+":""}${ymove+offset[1]},
+        ${mat[6]!=0?mat[6]+"*x+":""}${mat[7]!=0?mat[7]+"*y+":""}${mat[8]!=0?mat[8]+"*z+":""}${zmove+offset[2]}
+      ]
+    }
+  })()`)
+
+}
+
+window.aft = affineTransform

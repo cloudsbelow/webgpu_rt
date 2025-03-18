@@ -14,7 +14,7 @@ return /*wgsl*/`
 const width = ${size[0]};
 const height = ${size[1]};
 const maxSceneDist:f32 = 10000000000.;
-const minSceneDist:f32 = 0.01;
+const minSceneDist:f32 = 0.0001;
 
 struct camStruct {
   pMatrix:mat4x4f,
@@ -38,20 +38,21 @@ ${scenematfns(1,1)}
 fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
   var light = vec3f(0,0,0);
   var trans = vec3f(1,1,1);
-  var absorb = vec3f(0,0,0);
-  var volemit = vec3f(0,0,0);
+  var absorb = vec3f(0.0,0.0,0.0);
+  var volemit = vec3f(0.0,0.0,0.0);
   var pos = spos;
   var dir = sdir;
   for(var i:u32=0; i<depth; i++){
     let hit = raytrace(pos,dir,minSceneDist*(1+4*length(pos)),maxSceneDist);
     let atmo = atmosphereScatter(dir, pos, hit.dist);
-    light+=trans*atmo.inscat;
-    trans*=atmo.transmittance;
 
     let segtrans = exp(-hit.dist*absorb);
     let inoutscat = volemit / (absorb+vec3f(1,1,1)*0.001);
     light += (-inoutscat*segtrans+inoutscat)*trans;
     trans *= segtrans;
+
+    light+=trans*atmo.inscat;
+    trans*=atmo.transmittance;
     
     if(!hit.didhit){
       return light;
@@ -68,7 +69,10 @@ fn getRadiance(spos:vec3f, sdir:vec3f, depth:u32)->vec3f{
       light+=trans*sample.emit;
     } else {
       absorb = max(absorb+sample.absorb*f32(sample.transmitsign),vec3f(0,0,0));
-      volemit = min(volemit+sample.emit*f32(sample.transmitsign),vec3f(0,0,0));
+      volemit = max(volemit+sample.emit*f32(sample.transmitsign),vec3f(0,0,0));
+      // if(sample.transmitsign == 1 && i==0){
+      //   return volemit;
+      // }
     }
     if(sample.terminate){
       return light;

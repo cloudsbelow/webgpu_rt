@@ -9,15 +9,16 @@ import * as lpass from "./passes/simpledirect/sdmain.js"
 import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 import { materials } from "./rt/fullrt/materialfns.js";
-import { discretedist, v3_uniform, v_lop } from "./util/menial/convenience.js";
+import { affineTransform, discretedist, v3_uniform, v_lop } from "./util/menial/convenience.js";
+import { Dragons } from "./rt/scenes.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
 lib.bvhlib = bvhlib
 
 
-const f = new util.FileContextRemote("f");
-
+const f = new util.FileContextRemote("f/assets/scene1/");
+var scene;
 ver.startWebGPU((device)=>{
   const size = [1024, 720]
   const cam = objs.cam = new Camera([0,2,0],[0,0],{np:0.1, fov:0.8, ar:size[1]/size[0]});
@@ -30,7 +31,6 @@ ver.startWebGPU((device)=>{
   cam.addControls(document.getElementById("cameraui"))
 
   const matbuf = materials.registry.upload(device)
-
   const ubgl = ver.bgl(device, "unifom buffers",[{r:"b"}, {r:"b"}])
   const ubg = ver.bg(ubgl, "unifom buffers", [{buffer:camUnif},{buffer:matbuf}])
 
@@ -38,15 +38,14 @@ ver.startWebGPU((device)=>{
   atmoparams.params.addControls(document.getElementById("sunui"));
   window.sun = atmoparams.params;
   
-  const cb = new util.Allcb(()=>{
+  const cb = new util.Allcb(async ()=>{
     const bvhctx = window.bvhctx = new bvhlib.BVHContext()
-    bvhctx.addTris(vbuffile.content, ibuffile.content)
-    for(let i=0; i<40; i++){
-      bvhctx.addCircle(v_lop(1,v3_uniform(-10,10),1,[0,5,0]),1+Math.random(),discretedist([0,1,0,0,3]));
-    }
-    bvhctx.addCircle([0,5,0],1,materials.glow);
-    //bvhctx.addTris(vbuffile.content,ibuffile.content,materials.glowglass,{vshift: [10,0,20]})
+    //bvhctx.addMesh(mesh,0,affineTransform({xrot:-Math.PI/2}))
+    await scene(bvhctx);
     const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
+    const depth = bvh.depth();
+    console.log(`Made bvh with ${bvhctx.x.length} primatives and depth ${depth}`)
+    if(depth>32) console.warn("depth>32 may result in errors (change the number in scenegeo if u want). You have been warned.")
 
     // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
     //   ubg, normmap.simplebg()
@@ -67,18 +66,13 @@ ver.startWebGPU((device)=>{
       if(!objs.stop) requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)
-  },3)
-  const spath = "/assets/scene1/";
-  const bpath = "pillars-pillar"
-  const ipath = "Normal_map.png"
-  const vbuffile = new util.File(f, spath+bpath+".ver", cb.c)
-  const ibuffile = new util.File(f, spath+bpath+".ind", cb.c)
-  const normmap = new BasicImageTx(f, spath+ipath, device, cb.c)
+  },1)
+  const mesh = new util.Mesh(f,"pillars-dragon",cb.ex());
+  cb.c()
   //normmap.when(()=>debugTex(device, [256, 256], normmap)())
 })
-console.log(ver)
 
-
+scene = Dragons
 
 function onDoneLoad(){
 }

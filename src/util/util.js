@@ -82,6 +82,7 @@ export class BAsyncObj{
     return this
   }
   settle(){
+    this.then = null;
     this._u--;
     while(this._u==0 && this._f){
       this._f[0](this)
@@ -90,6 +91,16 @@ export class BAsyncObj{
   }
   unsettle(){
     this._u++;
+    this.then = BAsyncObj.prototype.then
+  }
+  then(resolve){
+    console.log(resolve);
+    //resolve()
+    if(this._u ==0)resolve(this)
+    this.when(()=>{
+      resolve(this)
+      this.then = null;
+    })
   }
 }
 
@@ -166,6 +177,15 @@ export class File extends BAsyncObj{
     this.content = content
     this.found = err == 0;
     this.settle()
+  }
+}
+
+export class Mesh extends BAsyncObj{
+  constructor(context, path, cb){
+    super(2)
+    this.vbuf = new File(context, path+".ver",this.settle.bind(this))
+    this.ibuf = new File(context, path+".ind",this.settle.bind(this))
+    if(cb) this.when(cb)
   }
 }
 

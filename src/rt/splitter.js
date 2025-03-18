@@ -1,5 +1,5 @@
 import * as ch from "../util/menial/convenience.js"
-import {b_cc} from "../util/util.js"
+import {b_cc, Mesh} from "../util/util.js"
 import { rtshader } from "./rtshader.js"
 import * as ver from "../util/gpu/verbose.js"
 function v3_max(v1,v2){
@@ -201,17 +201,18 @@ export class BVHContext{
   }
   addTris(vbuf, ibuf, material=0, {
     posoffset=0, vstride=16,
-    istride = 12, idtype = Uint32Array, vshift = [0,0,0]
+    istride = 12, idtype = Uint32Array, transform = ch.affineTransform({})
   }={}){
     let vo = this.v.length;
     if(vbuf instanceof ArrayBuffer){
-      let vs = new Float32Array(vshift)
       for(let i=0; i<vbuf.byteLength/vstride; i++){
-        this.v.push(ch.v_lop(1,new Float32Array(vbuf, i*vstride+posoffset, 3),1,vs))
+        const point = new Float32Array(vbuf, i*vstride+posoffset, 3)
+        this.v.push(new Float32Array(transform(point[0],point[1],point[2])))
         this.m.push(material);
       }
     } else for(let i=0; i<vbuf.length; i+=3){
-      this.v.push(new Float32Array([vbuf[0+i]+vshift[0],vbuf[1+i]+vshift[1],vbuf[2+i]+vshift[2]]))
+      //[vbuf[0+i]+vshift[0],vbuf[1+i]+vshift[1],vbuf[2+i]+vshift[2]]
+      this.v.push(new Float32Array(transform(vbuf[0+i],vbuf[1+i],vbuf[2+i])))
       this.m.push(material);
     }
     
@@ -241,6 +242,14 @@ export class BVHContext{
     this.l.push(ch.v_lop(1,v[center],-1,v[span]))
     this.h.push(ch.v_lop(1,v[center],1,v[span]))
     this.n = this.x.length;
+  }
+  /**
+   * 
+   * @param {Mesh} mesh 
+   * @param {*} transform 
+   */
+  addMesh(mesh, material, transform = ch.affineTransform({})){
+    this.addTris(mesh.vbuf.content,mesh.ibuf.content,material,{transform:transform})
   }
 }
 

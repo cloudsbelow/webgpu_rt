@@ -96,7 +96,7 @@ fn recoverHitinfo(h:disthit, pos:vec3f, dir:vec3f)->hitInfo{
 }
 
 fn raytrace(pos:vec3f, dir:vec3f, tmin_:f32, tmax_:f32)->hitInfo{
-  var searchstack:array<u32, 24>;
+  var searchstack:array<u32, 32>;
   var stackidx:u32 = 1;
   searchstack[0] = 0;
   var i:u32=0;

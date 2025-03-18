@@ -41,7 +41,7 @@ export class AtmosphereConsts{
     this.phi=1;
     this.alt=0;
     this.alt=100;
-    this.gain = 1;
+    this.gain = 10000;
     this.sundiskangle=0.07;
     this.sundiskimportance=0.3;
     this.setSunPos()
@@ -95,7 +95,7 @@ export function sceneatmofns(group){
       dir:vec3f, //MUST BE UNIT
       alt:f32,
       col:vec3f,
-      gain:f32,
+      firstsampledist:f32,
       suntheta:f32,
       sunphi:f32,
       sundisk:f32,
@@ -109,7 +109,7 @@ export function sceneatmofns(group){
     }
 
     fn atmosphereScatter(dir:vec3f, rpos:vec3f, maxdist:f32)->atmosphereResult{
-      const sampleCount = 20.;
+      const maxSampleCount = 80.;
       var pos=vec3f(0,sun.alt+gRad,0)+rpos;
       let ct=dot(dir,sun.dir);
       let cts=ct*ct;
@@ -123,14 +123,21 @@ export function sceneatmofns(group){
       let aedge = -hcos+sqrt(sqrtval+aRad*aRad);
       let ghit = -hcos-sqrt(sqrtval+gRad*gRad-gRad*aWidth/2);
       let dist = min(maxdist, select(aedge,ghit,ghit>0));
-      let stepsize = dist/sampleCount;
-      let step = dir*stepsize;
-      pos+=step*unitRand();
+      var stepsize = min(dist, sun.firstsampledist);
+      var traveled:f32 = 0;
 
       //return vec3(rphase,mphase,abs(sun.alt)+1);
       var transmittance=vec3f(1,1,1);
       var light=vec3f(0,0,0);
-      for(var i=0.; i<sampleCount; i+=1){
+      let ipos = pos;
+      for(var i=0.; i<maxSampleCount; i+=1){
+        let rand = unitRand();
+        traveled+=rand*stepsize;
+        if(traveled>dist){
+          break;
+        }
+        pos = traveled*dir+ipos;
+
         let salt = length(pos)-gRad;
         ${rAt+mAt+oAt+eAt}
         let scoords = vec2f(
@@ -151,12 +158,15 @@ export function sceneatmofns(group){
         let segtrans = exp(-stepsize*eAt);
         light += (-inoutscat*segtrans+inoutscat)*transmittance;
         transmittance *= segtrans;
-        pos+=step;
+
+        traveled+=(1-rand)*stepsize;
+        const importanceVec = vec3f(0.4,0.6,0.3);
+        stepsize*=select(1.1,1.3,dot(importanceVec,transmittance)<0.3);
       }
       var ret:atmosphereResult;
       ret.inscat = light*sun.col;
       ret.transmittance = transmittance;
-      if(dot(dir, sun.dir)>cos(sun.sundisk) && maxdist>=maxSceneDist){
+      if(dot(dir, sun.dir)>cos(sun.sundisk) && maxdist>=maxSceneDist &&dot(dir,normalize(ipos))>-sun.sundisk-0.1){
         ret.inscat += sun.col*transmittance/(1-cos(sun.sundisk))/5;
       }
       return ret;

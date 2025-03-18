@@ -21,9 +21,6 @@
         text-align: center;
         margin:1px 1px 1px 0px;
       }
-      #debugWrapper {
-        margin-top:30px;
-      }
       body{
         margin-top:0px;
         height:700px;
@@ -31,6 +28,12 @@
       }
       #uielems{
         color:white;
+        margin-left:10px;
+      }
+      #content{
+        display:flex;
+        flex-direction: row;
+        padding:30px;
       }
     </style>
   </head>
@@ -42,11 +45,14 @@
     
   </script>
   <body style="background-color:#010107">
-    <div id="debugWrapper"></div>
-    <div id="uielems">
-      <div id="cameraui"></div>
-      <div id="sunui"></div>
+    <div id="content">
+      <div id="debugWrapper"></div>
+      <div id="uielems">
+        <div id="cameraui"></div>
+        <div id="sunui"></div>
+      </div>
     </div>
+    
   </body>
   <script src = 'src/main.js', type="module"></script>
 </html>

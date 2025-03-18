@@ -27,6 +27,7 @@ function m4_mul(a,b){
   }
   return c;
 }
+
 function m4_transf(x,y,z){
   return new Float32Array([
     1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1
@@ -106,7 +107,7 @@ export class Camera{
     this.params = {
       loc:loc, vdir:vdir,
       fov:fov, ar:ar, np:np, t:t,
-      samples: 10, resamples:16, gain:gain
+      samples: 5, resamples:16, gain:gain
     }
     this.lu = Date.now()
     this.binds = keybinds
@@ -168,6 +169,6 @@ Camera.prototype.verify = function(){
 
 Camera.prototype.addControls = function(parent){
   parent.appendChild(makeslider("gain     ",(value)=>this.params.gain = value,0,10,1,0.1))
-  parent.appendChild(makeslider("samples ",(value)=>this.params.samples = value,1,32,10,1))
+  parent.appendChild(makeslider("samples ",(value)=>this.params.samples = value,1,32,this.params.samples,1))
   parent.appendChild(makeslider("resamples",(value)=>this.params.samples = value,1,32,16,1))
 }
