@@ -37,48 +37,11 @@ export const Dragons = async function(bvhctx){
 
   bvhctx.addMesh(dragon, blueGlass, affineTransform({xrot:-Math.PI/2, offset:[-4,0,-6]}))
   bvhctx.addMesh(dragon, materials.glowglass, affineTransform({xrot:-Math.PI/2,yrot:3,offset:[4,0,6]}))
-  
-  bvhctx.addMesh(pillars, 0, affineTransform({scale:3,offset:[0,-3,0]}));
-  bvhctx.addMesh(pillars, foggyglass, affineTransform({scale:3,offset:[-50,-3,0]}));
+
+
+  //bvhctx.addMesh(pillars, foggyglass, affineTransform({scale:3,offset:[-50,-3,0]}));
+  bvhctx.addMesh(pillars, materials.basic, affineTransform({scale:3,offset:[0,-3,0]}));
 
   bvhctx.addCircle([0,-302,0],300,materials.diffuse);
-  bvhctx.addCircle([-50,-302,0],300,materials.diffuse);
-
-  bvhctx.addCircle([-1000,0,-1000],400,materials.glow)
-
-  for(let i=0; i<60; i++){
-    const theta = Math.random()*2*Math.PI;
-    const r = Math.random()*10+25
-    const h = Math.random()*20-1
-    const rad = Math.random()+1
-    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[warmGlass]))
-  }
-  for(let i=0; i<20; i++){
-    const theta = Math.random()*2*Math.PI;
-    const r = Math.random()*10+25
-    const h = Math.random()*10+20
-    const rad = Math.random()+1
-    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[warmGlass]))
-  }
-  for(let i=0; i<20; i++){
-    const theta = Math.random()*2*Math.PI;
-    const r = Math.random()*10+25
-    const h = Math.random()*20+30
-    const rad = Math.random()+1
-    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[warmGlass]))
-  }
-  for(let i=0; i<70; i++){
-    const theta = Math.random()*2*Math.PI;
-    const r = Math.sqrt(Math.random())*70
-    const h = Math.random()*40-1
-    const rad = Math.random()*2+2
-    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[materials.glass]))
-  }
-  for(let i=0; i<30; i++){
-    const theta = Math.random()*2*Math.PI;
-    const r = Math.sqrt(Math.random())*70
-    const h = Math.random()*40-1
-    const rad = Math.random()*2+2
-    bvhctx.addCircle([Math.cos(theta)*r,h,Math.sin(theta)*r],rad,discretechoice([1],[materials.mirror]))
-  }
+  
 }

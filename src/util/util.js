@@ -68,7 +68,7 @@ export class BAsyncObj{
     this.when = this.when.bind(this);
   }
   when(fn){
-    if(this.unrest==0&&!this._f) fn(this);
+    if(this._u==0&&!this._f) fn(this);
     else {
       let temp=[fn,null]
       if(this._f){
@@ -82,7 +82,7 @@ export class BAsyncObj{
     return this
   }
   settle(){
-    this.then = null;
+    this.then=null;
     this._u--;
     while(this._u==0 && this._f){
       this._f[0](this)
@@ -90,17 +90,13 @@ export class BAsyncObj{
     }
   }
   unsettle(){
+    this.then = BAsyncObj.prototype.then;
     this._u++;
-    this.then = BAsyncObj.prototype.then
   }
   then(resolve){
-    console.log(resolve);
-    //resolve()
-    if(this._u ==0)resolve(this)
     this.when(()=>{
-      resolve(this)
-      this.then = null;
-    })
+      resolve(this);
+    });
   }
 }
 
@@ -215,7 +211,11 @@ export class FileContextServer extends BAsyncObj{
     this.url = url;
     this.base = basepath;
     this.fs = undefined;
-    import('fs').then((fs)=>{this.settle(); this.fs=fs})
+    import('fs').then((fs)=>{
+      console.log("Imported FS"); 
+      this.settle(); 
+      this.fs=fs
+    })
   }
   getfile=(file, cb)=>{
     const filepath = this.base+file;
@@ -266,29 +266,33 @@ export const keys = {
   on: new Proxy(onfns.down,initializingHandler(()=>new Set(),remapkey)),
   onup: new Proxy(onfns.up,initializingHandler(()=>new Set(),remapkey))
 }
-window.addEventListener("keydown",(ev)=>{
-  keys[ev.code]=Date.now();
-  let m;
-  if(m=onfns.down[ev.code]){
-    m.forEach(f=>f(ev))
-  }
-})
-window.addEventListener("keyup",(ev)=>{
-  let delt = Date.now()-keys[ev.key];
-  keys[ev.code]=0;
-  let m;
-  if(m=onfns.up[ev.code]){
-    m.forEach(f=>f(ev,delt))
-  }
-})
+try{
+  window.addEventListener("keydown",(ev)=>{
+    keys[ev.code]=Date.now();
+    let m;
+    if(m=onfns.down[ev.code]){
+      m.forEach(f=>f(ev))
+    }
+  })
+  window.addEventListener("keyup",(ev)=>{
+    let delt = Date.now()-keys[ev.key];
+    keys[ev.code]=0;
+    let m;
+    if(m=onfns.up[ev.code]){
+      m.forEach(f=>f(ev,delt))
+    }
+  })
+  window.addEventListener("mousemove",(ev)=>{
+    mouseClientPos.x=ev.clientX
+    mouseClientPos.y=ev.clientY
+  })
+  window.keys = keys
+} catch(e){
 
+}
 export const mouseClientPos={x:0,y:0};
-window.addEventListener("mousemove",(ev)=>{
-  mouseClientPos.x=ev.clientX
-  mouseClientPos.y=ev.clientY
-})
+
 
 export function clamp(f,l,h){
   return f<l?l:(f>h?h:f)
 }
-window.keys = keys
