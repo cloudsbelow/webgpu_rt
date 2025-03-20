@@ -10,7 +10,7 @@ import { genrtpass } from "./rt/fullrt/rtmain.js";
 import { AtmosphereConsts, skyFn } from "./modules/atmosphere.js";
 import { materials } from "./rt/fullrt/materialfns.js";
 import { affineTransform, discretedist, v3_uniform, v_lop } from "./util/menial/convenience.js";
-import { Dragons } from "./rt/scenes.js";
+import { buildScene, Dragons, teststr } from "./rt/scenes.js";
 lib.util=util
 lib.ver=ver
 lib.debugTex=debugTex
@@ -38,24 +38,25 @@ ver.startWebGPU((device)=>{
   atmoparams.params.addControls(document.getElementById("sunui"));
   window.sun = atmoparams.params;
   
+  const bvhctx =window.bvhctx= new bvhlib.BVHContext()
+  const bvhst = bvhctx.getBuffers(device);
+
   const cb = new util.Allcb(async ()=>{
-    const bvhctx = window.bvhctx = new bvhlib.BVHContext()
+    window.mesh = await new util.Mesh(f,"pillars-dragon")
+    //const bvhctx = window.bvhctx = new bvhlib.BVHContext()
     //bvhctx.addMesh(mesh,0,affineTransform({xrot:-Math.PI/2}))
-    await scene(bvhctx);
-    const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
-    const depth = bvh.depth();
-    console.log(`Made bvh with ${bvhctx.x.length} primatives and depth ${depth}`)
-    if(depth>32) console.warn("depth>32 may result in errors (change the number in scenegeo if u want). You have been warned.")
+    //await scene(bvhctx);
+    //const bvh = window.bvh = bvhctx.makeRoot({method: bvhlib.sahsplit})
+    //const depth = bvh.depth();
+    //console.log(`Made bvh with ${bvhctx.x.length} primatives and depth ${depth}`)
+    //if(depth>32) console.warn("depth>32 may result in errors (change the number in scenegeo if u want). You have been warned.")
 
-    // const gbs = objs.gbs = Gbuffers.mpipe(device, size, [
-    //   ubg, normmap.simplebg()
-    // ], vbuffile.content, bvh.mIndex().buffer)
-
-    const bvhst = bvh.prepare(device)
+    //const bvhst = bvh.prepare(device)
     //const deferedpass = lpass.genpass(device, bvhst, gbs, ubg)
     const rtpass = genrtpass(device, size, ubg, bvhst, atmoparams)
     //const db_p = debugTex(device, size, deferedpass.tx)
     const rt_p = debugTex(device, size, rtpass.tx)
+    buildScene(bvhctx,teststr)
     onDoneLoad()
 
     const frame = ()=>{

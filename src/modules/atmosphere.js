@@ -38,7 +38,7 @@ export class AtmosphereConsts{
     });
     this.cpubuf = new Float32Array(12);
     this.theta=0;
-    this.phi=1;
+    this.phi=0.05;
     this.alt=0;
     this.alt=100;
     this.gain = 10000;

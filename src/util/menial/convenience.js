@@ -97,7 +97,7 @@ export function affineTransform({
   const zrotm = new Float32Array([Math.cos(zrot),-Math.sin(zrot),0,  Math.sin(zrot),Math.cos(zrot),0,  0,0,1]);
   const scalem = new Float32Array([scale[0]*xscale,0,0,  0,scale[1]*yscale,0,  0,0,scale[2]*zscale]);
   const mat =  m3_mul(yrotm, m3_mul(zrotm, m3_mul(xrotm, scalem)));
-  return eval(`(()=>{
+  const str = `(()=>{
     return function(x,y,z){
       return [
         ${mat[0]!=0?mat[0]+"*x+":""}${mat[1]!=0?mat[1]+"*y+":""}${mat[2]!=0?mat[2]+"*z+":""}${xmove+offset[0]},
@@ -105,7 +105,10 @@ export function affineTransform({
         ${mat[6]!=0?mat[6]+"*x+":""}${mat[7]!=0?mat[7]+"*y+":""}${mat[8]!=0?mat[8]+"*z+":""}${zmove+offset[2]}
       ]
     }
-  })()`)
+  })()`
+  const f = eval(str);
+  f.str = str;
+  return f;
 
 }
 

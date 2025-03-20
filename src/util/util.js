@@ -187,7 +187,7 @@ export class Mesh extends BAsyncObj{
 
 export class FileContextRemote{
   constructor(basepath){
-    this.base = basepath+"/"
+    this.base = basepath
   }
   getfile=(file, cb)=>{
     const xhr = new XMLHttpRequest();
@@ -268,6 +268,7 @@ export const keys = {
 }
 try{
   window.addEventListener("keydown",(ev)=>{
+    if(ev.target.classList.contains("deafen")) return;
     keys[ev.code]=Date.now();
     let m;
     if(m=onfns.down[ev.code]){
@@ -277,6 +278,7 @@ try{
   window.addEventListener("keyup",(ev)=>{
     let delt = Date.now()-keys[ev.key];
     keys[ev.code]=0;
+    if(ev.target.classList.contains("deafen")) return;
     let m;
     if(m=onfns.up[ev.code]){
       m.forEach(f=>f(ev,delt))

@@ -107,7 +107,7 @@ export class Camera{
     this.params = {
       loc:loc, vdir:vdir,
       fov:fov, ar:ar, np:np, t:t,
-      samples: 5, resamples:16, gain:gain
+      samples: 2, resamples:16, gain:gain
     }
     this.lu = Date.now()
     this.binds = keybinds
